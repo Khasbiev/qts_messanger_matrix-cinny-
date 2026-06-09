@@ -216,3 +216,10 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# ─── Matrix deployment ────────────────────────────────────────
+# Real secrets / generated files — NEVER commit these
+.env
+synapse/data/
+synapse/homeserver.yaml
+nginx/certbot/
