@@ -1,0 +1,85 @@
+export const channels = [
+  { id: '1', name: 'general',       unread: 3  },
+  { id: '2', name: 'announcements', unread: 0  },
+  { id: '3', name: 'разработка',    unread: 12 },
+  { id: '4', name: 'дизайн',        unread: 0  },
+  { id: '5', name: 'случайное',     unread: 1  },
+]
+
+export const dms = [
+  { id: 'd1', name: 'Иван Петров',      avatar: 'ИП', online: true,  unread: 2 },
+  { id: 'd2', name: 'Мария Иванова',    avatar: 'МИ', online: true,  unread: 0 },
+  { id: 'd3', name: 'Алексей Сидоров', avatar: 'АС', online: false, unread: 0 },
+  { id: 'd4', name: 'Дмитрий Козлов',  avatar: 'ДК', online: false, unread: 0 },
+]
+
+export const messages = [
+  {
+    id: 'm0',
+    type: 'date',
+    date: 'Понедельник, 9 июня 2026',
+  },
+  {
+    id: 'm1',
+    type: 'system',
+    text: 'Мария Иванова присоединилась к каналу',
+  },
+  {
+    id: 'm2',
+    type: 'message',
+    sender: 'Иван Петров',
+    avatar: 'ИП',
+    time: '09:14',
+    text: 'Доброе утро! Напоминаю — сегодня в 15:00 созвон по новому дизайну.',
+    isOwn: false,
+  },
+  {
+    id: 'm3',
+    type: 'message',
+    sender: 'Мария Иванова',
+    avatar: 'МИ',
+    time: '09:16',
+    text: 'Буду. Можете скинуть ссылку на макеты?',
+    isOwn: false,
+    reactions: [{ emoji: '👍', count: 3 }, { emoji: '✅', count: 1 }],
+  },
+  {
+    id: 'm4',
+    type: 'message',
+    sender: 'Я',
+    avatar: 'АД',
+    time: '09:18',
+    text: 'Конечно, вот файлы:',
+    isOwn: true,
+  },
+  {
+    id: 'm5',
+    type: 'message',
+    sender: 'Я',
+    avatar: 'АД',
+    time: '09:18',
+    text: null,
+    isOwn: true,
+    file: { name: 'design_v3_final.fig', size: '4.2 МБ', ext: 'fig' },
+    readBy: 2,
+  },
+  {
+    id: 'm6',
+    type: 'message',
+    sender: 'Иван Петров',
+    avatar: 'ИП',
+    time: '09:22',
+    text: 'Спасибо! Изучу до созвона.',
+    isOwn: false,
+  },
+  {
+    id: 'm7',
+    type: 'message',
+    sender: 'Я',
+    avatar: 'АД',
+    time: '09:23',
+    text: 'Отлично. Если будут вопросы — пишите.',
+    isOwn: true,
+    readBy: 3,
+  },
+]

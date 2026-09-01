@@ -223,3 +223,11 @@ __marimo__/
 synapse/data/
 synapse/homeserver.yaml
 nginx/certbot/
+.local-test-synapse/
+
+# Node
+node_modules/
+
+# client/src/lib/ is app source, not a Python build artifact — un-ignore it
+# from the generic "lib/" rule above.
+!client/src/lib/
