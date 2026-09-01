@@ -3,6 +3,8 @@ import { IconSearch, IconPlus } from '@tabler/icons-react'
 import { ClientEvent, RoomEvent } from 'matrix-js-sdk'
 import ChatItem from './ChatItem'
 import UserFooter from './UserFooter'
+import NewDmModal from '../Modals/NewDmModal'
+import { waitForRoom } from '../../lib/matrix'
 
 function categorize(client, rooms) {
   const directRoomIds = new Set(
@@ -26,6 +28,19 @@ export default function Sidebar({ client, activeRoom, onRoomSelect, onLogout }) 
   const refresh = useCallback(() => {
     setRooms(categorize(client, client.getRooms()))
   }, [client])
+
+  const [showNewDm, setShowNewDm] = useState(false)
+
+  const handleCreated = async (roomId) => {
+    setShowNewDm(false)
+    try {
+      const room = await waitForRoom(roomId)
+      refresh()
+      onRoomSelect(room)
+    } catch {
+      refresh()
+    }
+  }
 
   useEffect(() => {
     client.on(ClientEvent.Sync, refresh)
@@ -79,9 +94,9 @@ export default function Sidebar({ client, activeRoom, onRoomSelect, onLogout }) 
           </>
         )}
 
+        <SectionHeader label="ЛИЧНЫЕ СООБЩЕНИЯ" style={{ marginTop: '8px' }} onClick={() => setShowNewDm(true)} />
         {rooms.dms.length > 0 && (
           <>
-            <SectionHeader label="ЛИЧНЫЕ СООБЩЕНИЯ" style={{ marginTop: '8px' }} />
             {rooms.dms.map(room => {
               const other = room.getJoinedMembers().find(m => m.userId !== client.getUserId())
               const name = other?.name || room.name
@@ -106,15 +121,20 @@ export default function Sidebar({ client, activeRoom, onRoomSelect, onLogout }) 
       </div>
 
       <UserFooter client={client} onLogout={onLogout} />
+
+      {showNewDm && (
+        <NewDmModal onClose={() => setShowNewDm(false)} onCreated={handleCreated} />
+      )}
     </div>
   )
 }
 
-function SectionHeader({ label, style }) {
+function SectionHeader({ label, style, onClick }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 10px 4px', ...style }}>
       <span style={{ fontSize: '10px', fontWeight: 600, letterSpacing: '0.07em', color: 'var(--text-muted)', textTransform: 'uppercase', userSelect: 'none' }}>{label}</span>
       <button
+        onClick={onClick}
         style={{ color: 'var(--text-muted)', display: 'flex', padding: '2px', borderRadius: '3px' }}
         onMouseEnter={e => e.currentTarget.style.color = 'var(--text-secondary)'}
         onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}

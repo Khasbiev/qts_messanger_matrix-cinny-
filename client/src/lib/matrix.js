@@ -70,3 +70,50 @@ export async function sendMessage(roomId, text) {
   if (!_client) throw new Error('Not connected')
   return _client.sendTextMessage(roomId, text)
 }
+
+export async function searchUsers(term) {
+  if (!_client) throw new Error('Not connected')
+  if (!term.trim()) return []
+  const { results } = await _client.searchUserDirectory({ term, limit: 50 })
+  return results.filter(u => u.user_id !== _client.getUserId())
+}
+
+export async function createOrGetDirectMessage(userId) {
+  if (!_client) throw new Error('Not connected')
+  const directContent = _client.getAccountData('m.direct')?.getContent() || {}
+  const existing = directContent[userId]?.[0]
+  if (existing && _client.getRoom(existing)) {
+    return existing
+  }
+
+  const { room_id } = await _client.createRoom({
+    is_direct: true,
+    visibility: 'private',
+    preset: 'private_chat',
+    invite: [userId],
+  })
+
+  const updated = { ...directContent, [userId]: [...(directContent[userId] || []), room_id] }
+  await _client.setAccountData('m.direct', updated)
+
+  return room_id
+}
+
+export function waitForRoom(roomId, timeoutMs = 5000) {
+  if (!_client) throw new Error('Not connected')
+  return new Promise((resolve, reject) => {
+    const existing = _client.getRoom(roomId)
+    if (existing) { resolve(existing); return }
+    const start = Date.now()
+    const interval = setInterval(() => {
+      const room = _client.getRoom(roomId)
+      if (room) {
+        clearInterval(interval)
+        resolve(room)
+      } else if (Date.now() - start > timeoutMs) {
+        clearInterval(interval)
+        reject(new Error('Room did not appear in time'))
+      }
+    }, 200)
+  })
+}
