@@ -3,23 +3,26 @@ import {
   IconBold, IconItalic, IconList,
   IconPaperclip, IconMoodSmile, IconAt, IconSend,
 } from '@tabler/icons-react'
-import { sendMessage } from '../../lib/matrix'
-
-const TOOLBAR = [
-  { Icon: IconBold,      title: 'Жирный (Ctrl+B)' },
-  { Icon: IconItalic,    title: 'Курсив (Ctrl+I)'  },
-  { Icon: IconList,      title: 'Список'            },
-  null,
-  { Icon: IconPaperclip, title: 'Прикрепить файл'  },
-  { Icon: IconMoodSmile, title: 'Эмодзи'            },
-  { Icon: IconAt,        title: 'Упомянуть'         },
-]
+import { sendMessage, uploadFile } from '../../lib/matrix'
 
 export default function InputArea({ room }) {
   const [value, setValue] = useState('')
+  const [uploading, setUploading] = useState(false)
+  const [uploadError, setUploadError] = useState('')
   const textareaRef = useRef(null)
+  const fileInputRef = useRef(null)
 
   const placeholder = `Написать в ${room.name}...`
+
+  const TOOLBAR = [
+    { Icon: IconBold,      title: 'Жирный (Ctrl+B)' },
+    { Icon: IconItalic,    title: 'Курсив (Ctrl+I)'  },
+    { Icon: IconList,      title: 'Список'            },
+    null,
+    { Icon: IconPaperclip, title: 'Прикрепить файл', onClick: () => fileInputRef.current?.click() },
+    { Icon: IconMoodSmile, title: 'Эмодзи'            },
+    { Icon: IconAt,        title: 'Упомянуть'         },
+  ]
 
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -46,10 +49,26 @@ export default function InputArea({ room }) {
     e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px'
   }
 
+  const handleFileChange = async (e) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    setUploading(true)
+    setUploadError('')
+    try {
+      await uploadFile(room.roomId, file)
+    } catch (err) {
+      setUploadError(err.data?.error || err.message || 'Не удалось загрузить файл')
+    } finally {
+      setUploading(false)
+    }
+  }
+
   const canSend = value.trim().length > 0
 
   return (
     <div style={{ padding: '0 16px 16px', flexShrink: 0 }}>
+      <input ref={fileInputRef} type="file" style={{ display: 'none' }} onChange={handleFileChange} />
       <div
         style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '10px', overflow: 'hidden', transition: 'border-color 0.15s' }}
         onFocusCapture={e => e.currentTarget.style.borderColor = '#2a2a2c'}
@@ -64,6 +83,7 @@ export default function InputArea({ room }) {
               <button
                 key={i}
                 title={btn.title}
+                onClick={btn.onClick}
                 style={{ width: '28px', height: '26px', borderRadius: '5px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', transition: 'all 0.1s', flexShrink: 0 }}
                 onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.07)'; e.currentTarget.style.color = 'var(--text-primary)' }}
                 onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = 'var(--text-muted)' }}
@@ -103,8 +123,8 @@ export default function InputArea({ room }) {
         </div>
       </div>
 
-      <div style={{ fontSize: '11px', color: 'var(--text-muted)', padding: '4px 2px 0', textAlign: 'right' }}>
-        Enter — отправить · Shift+Enter — новая строка
+      <div style={{ fontSize: '11px', color: uploadError ? '#ff4d4d' : 'var(--text-muted)', padding: '4px 2px 0', textAlign: 'right' }}>
+        {uploadError || (uploading ? 'Загрузка файла...' : 'Enter — отправить · Shift+Enter — новая строка')}
       </div>
     </div>
   )

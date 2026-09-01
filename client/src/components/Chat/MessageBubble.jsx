@@ -1,4 +1,6 @@
-import { IconDownload } from '@tabler/icons-react'
+import { useState, useEffect } from 'react'
+import { IconDownload, IconLoader2 } from '@tabler/icons-react'
+import { resolveMediaUrl } from '../../lib/matrix'
 
 const EXT_COLOR = {
   pdf:  '#ff5252',
@@ -10,6 +12,83 @@ const EXT_COLOR = {
   zip:  '#ff9800',
   png:  '#ab47bc',
   jpg:  '#ab47bc',
+}
+
+function MediaImage({ mxcUrl, name }) {
+  const [blobUrl, setBlobUrl] = useState(null)
+
+  useEffect(() => {
+    let cancelled = false
+    let url = null
+    resolveMediaUrl(mxcUrl).then(resolved => {
+      if (cancelled) { URL.revokeObjectURL(resolved); return }
+      url = resolved
+      setBlobUrl(resolved)
+    }).catch(() => {})
+    return () => {
+      cancelled = true
+      if (url) URL.revokeObjectURL(url)
+    }
+  }, [mxcUrl])
+
+  if (!blobUrl) {
+    return (
+      <div style={{ width: '120px', height: '80px', borderRadius: '8px', background: 'var(--bg-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
+        <IconLoader2 size={18} className="spin" />
+      </div>
+    )
+  }
+
+  return (
+    <img
+      src={blobUrl}
+      alt={name}
+      style={{ maxWidth: '280px', maxHeight: '280px', borderRadius: '8px', display: 'block', cursor: 'pointer' }}
+      onClick={() => window.open(blobUrl, '_blank')}
+    />
+  )
+}
+
+function DownloadButton({ mxcUrl, name }) {
+  const [downloading, setDownloading] = useState(false)
+
+  const handleClick = async () => {
+    setDownloading(true)
+    try {
+      const blobUrl = await resolveMediaUrl(mxcUrl)
+      const a = document.createElement('a')
+      a.href = blobUrl
+      a.download = name
+      a.click()
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 10000)
+    } catch {
+      /* ignore — user can retry */
+    } finally {
+      setDownloading(false)
+    }
+  }
+
+  return (
+    <button
+      onClick={handleClick}
+      disabled={downloading}
+      style={{
+        width: '28px',
+        height: '28px',
+        borderRadius: '6px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        color: 'var(--text-muted)',
+        flexShrink: 0,
+        transition: 'all 0.12s',
+      }}
+      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; e.currentTarget.style.color = 'var(--text-primary)' }}
+      onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = 'var(--text-muted)' }}
+    >
+      {downloading ? <IconLoader2 size={15} strokeWidth={2} className="spin" /> : <IconDownload size={15} strokeWidth={2} />}
+    </button>
+  )
 }
 
 export default function MessageBubble({ message }) {
@@ -33,7 +112,7 @@ export default function MessageBubble({ message }) {
     )
   }
 
-  const { isOwn, sender, avatar, time, text, file, reactions, readBy } = message
+  const { isOwn, sender, avatar, time, text, file, image, reactions, readBy } = message
 
   return (
     <div style={{
@@ -92,6 +171,12 @@ export default function MessageBubble({ message }) {
             </p>
           )}
 
+          {image && (
+            <div style={{ paddingTop: text ? '8px' : '0' }}>
+              <MediaImage mxcUrl={image.mxcUrl} name={image.name} />
+            </div>
+          )}
+
           {file && (
             <div style={{
               display: 'flex',
@@ -140,23 +225,7 @@ export default function MessageBubble({ message }) {
               </div>
 
               {/* Download */}
-              <button
-                style={{
-                  width: '28px',
-                  height: '28px',
-                  borderRadius: '6px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: 'var(--text-muted)',
-                  flexShrink: 0,
-                  transition: 'all 0.12s',
-                }}
-                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; e.currentTarget.style.color = 'var(--text-primary)' }}
-                onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = 'var(--text-muted)' }}
-              >
-                <IconDownload size={15} strokeWidth={2} />
-              </button>
+              <DownloadButton mxcUrl={file.mxcUrl} name={file.name} />
             </div>
           )}
         </div>

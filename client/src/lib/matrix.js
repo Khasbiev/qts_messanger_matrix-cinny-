@@ -71,6 +71,46 @@ export async function sendMessage(roomId, text) {
   return _client.sendTextMessage(roomId, text)
 }
 
+export async function uploadFile(roomId, file) {
+  if (!_client) throw new Error('Not connected')
+  const { content_uri: mxcUrl } = await _client.uploadContent(file, { type: file.type })
+
+  const isImage = file.type.startsWith('image/')
+  const content = {
+    msgtype: isImage ? 'm.image' : 'm.file',
+    body: file.name,
+    url: mxcUrl,
+    info: {
+      mimetype: file.type,
+      size: file.size,
+    },
+  }
+
+  if (isImage) {
+    const { width, height } = await readImageDimensions(file)
+    content.info.w = width
+    content.info.h = height
+  }
+
+  return _client.sendMessage(roomId, content)
+}
+
+function readImageDimensions(file) {
+  return new Promise((resolve) => {
+    const img = new Image()
+    const objectUrl = URL.createObjectURL(file)
+    img.onload = () => {
+      resolve({ width: img.naturalWidth, height: img.naturalHeight })
+      URL.revokeObjectURL(objectUrl)
+    }
+    img.onerror = () => {
+      resolve({ width: 0, height: 0 })
+      URL.revokeObjectURL(objectUrl)
+    }
+    img.src = objectUrl
+  })
+}
+
 export async function createChannel({ name, topic, inviteUserIds }) {
   if (!_client) throw new Error('Not connected')
   const { room_id } = await _client.createRoom({
@@ -109,6 +149,18 @@ export async function createOrGetDirectMessage(userId) {
   await _client.setAccountData('m.direct', updated)
 
   return room_id
+}
+
+export async function resolveMediaUrl(mxcUrl) {
+  if (!_client) throw new Error('Not connected')
+  const httpUrl = _client.mxcUrlToHttp(mxcUrl, undefined, undefined, undefined, false, false, true)
+  if (!httpUrl) throw new Error('Invalid media URL')
+  const resp = await fetch(httpUrl, {
+    headers: { Authorization: `Bearer ${_client.getAccessToken()}` },
+  })
+  if (!resp.ok) throw new Error('Не удалось загрузить медиафайл')
+  const blob = await resp.blob()
+  return URL.createObjectURL(blob)
 }
 
 export function waitForRoom(roomId, timeoutMs = 5000) {

@@ -2,6 +2,13 @@ import { useState, useEffect, useRef } from 'react'
 import { RoomEvent } from 'matrix-js-sdk'
 import MessageBubble from './MessageBubble'
 
+function formatFileSize(bytes) {
+  if (!bytes) return ''
+  if (bytes < 1024) return `${bytes} Б`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} КБ`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} МБ`
+}
+
 function extractMessages(client, room) {
   const me = client.getUserId()
   const events = room.getLiveTimeline().getEvents()
@@ -16,15 +23,32 @@ function extractMessages(client, room) {
     const member = room.getMember(senderId)
     const name = member?.name || senderId.replace('@', '').split(':')[0]
 
-    result.push({
+    const base = {
       id: ev.getId(),
       type: 'message',
       sender: name,
       avatar: name.slice(0, 2).toUpperCase(),
       time: new Date(ev.getTs()).toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit' }),
-      text: content.body,
       isOwn: senderId === me,
-    })
+    }
+
+    if (content.msgtype === 'm.image' && content.url) {
+      base.image = {
+        mxcUrl: content.url,
+        name: content.body,
+      }
+    } else if (content.msgtype === 'm.file' && content.url) {
+      base.file = {
+        mxcUrl: content.url,
+        name: content.body,
+        ext: (content.body.split('.').pop() || '').toLowerCase(),
+        size: formatFileSize(content.info?.size),
+      }
+    } else {
+      base.text = content.body
+    }
+
+    result.push(base)
   }
 
   return result

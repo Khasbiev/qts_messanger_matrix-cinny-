@@ -28,3 +28,6 @@ body {
 input, textarea, button { font-family: inherit; font-size: inherit; }
 button { cursor: pointer; border: none; background: none; }
 textarea { resize: none; }
+
+@keyframes spin { to { transform: rotate(360deg); } }
+.spin { animation: spin 0.8s linear infinite; }
