@@ -85,6 +85,15 @@ enable_registration: false
 registration_shared_secret: "%%REGISTRATION_SECRET%%"
 
 # ─────────────────────────────────────────────
+# USER DIRECTORY
+# Show all registered users in directory search, not just users who
+# already share a room with the searcher — needed so the client's
+# "new chat" user picker works before any room exists between two users.
+# ─────────────────────────────────────────────
+user_directory:
+  search_all_users: true
+
+# ─────────────────────────────────────────────
 # SECURITY SECRETS
 # ─────────────────────────────────────────────
 macaroon_secret_key: "%%MACAROON_SECRET%%"
