@@ -5,12 +5,13 @@ import ChatItem from './ChatItem'
 import UserFooter from './UserFooter'
 
 function categorize(client, rooms) {
-  const me = client.getUserId()
+  const directRoomIds = new Set(
+    Object.values(client.getAccountData('m.direct')?.getContent() || {}).flat()
+  )
   const channels = []
   const dms = []
   for (const room of rooms) {
-    const members = room.getJoinedMembers()
-    if (members.length === 2 && members.some(m => m.userId !== me)) {
+    if (directRoomIds.has(room.roomId)) {
       dms.push(room)
     } else {
       channels.push(room)
@@ -29,9 +30,11 @@ export default function Sidebar({ client, activeRoom, onRoomSelect, onLogout }) 
   useEffect(() => {
     client.on(ClientEvent.Sync, refresh)
     client.on(RoomEvent.MyMembership, refresh)
+    client.on(ClientEvent.AccountData, refresh)
     return () => {
       client.off(ClientEvent.Sync, refresh)
       client.off(RoomEvent.MyMembership, refresh)
+      client.off(ClientEvent.AccountData, refresh)
     }
   }, [client, refresh])
 
