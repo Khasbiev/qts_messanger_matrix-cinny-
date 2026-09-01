@@ -1,4 +1,4 @@
-import { IconSearch, IconBell, IconArrowLeft, IconLayoutSidebarLeftCollapse, IconLayoutSidebarLeftExpand } from '@tabler/icons-react'
+import { IconArrowLeft, IconLayoutSidebarLeftCollapse, IconLayoutSidebarLeftExpand } from '@tabler/icons-react'
 import { colorFor } from '../../lib/avatarColor'
 import { isDirectRoom } from '../../lib/matrix'
 
@@ -63,20 +63,6 @@ export default function Header({ client, room, navMode, onNav }) {
         </div>
       </div>
 
-      <div style={{ flex: 1 }} />
-
-      <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
-        {[IconSearch, IconBell].map((Icon, i) => (
-          <button
-            key={i}
-            style={{ width: '32px', height: '32px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)', transition: 'all 0.12s' }}
-            onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-card)'; e.currentTarget.style.color = 'var(--text-primary)' }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = 'var(--text-secondary)' }}
-          >
-            <Icon size={18} strokeWidth={1.8} />
-          </button>
-        ))}
-      </div>
     </div>
   )
 }

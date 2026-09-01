@@ -123,9 +123,11 @@ export default function InputArea({ room }) {
         </div>
       </div>
 
-      <div style={{ fontSize: '11px', color: uploadError ? '#ff4d4d' : 'var(--text-muted)', padding: '4px 2px 0', textAlign: 'right' }}>
-        {uploadError || (uploading ? 'Загрузка файла...' : 'Enter — отправить · Shift+Enter — новая строка')}
-      </div>
+      {(uploadError || uploading) && (
+        <div style={{ fontSize: '11px', color: uploadError ? '#ff4d4d' : 'var(--text-muted)', padding: '4px 2px 0', textAlign: 'right' }}>
+          {uploadError || 'Загрузка файла...'}
+        </div>
+      )}
     </div>
   )
 }

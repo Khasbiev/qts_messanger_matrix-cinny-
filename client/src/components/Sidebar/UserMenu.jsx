@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
-import { IconSettings, IconLogout } from '@tabler/icons-react'
+import { IconAddressBook, IconSettings, IconLogout } from '@tabler/icons-react'
 
-export default function UserMenu({ client, onClose, onOpenSettings, onLogout }) {
+export default function UserMenu({ client, onClose, onOpenContacts, onOpenSettings, onLogout }) {
   const ref = useRef(null)
 
   useEffect(() => {
@@ -45,6 +45,7 @@ export default function UserMenu({ client, onClose, onOpenSettings, onLogout }) 
         </div>
       </div>
 
+      <MenuItem icon={IconAddressBook} label="Контакты" onClick={() => { onClose(); onOpenContacts() }} />
       <MenuItem icon={IconSettings} label="Настройки" onClick={() => { onClose(); onOpenSettings() }} />
       <MenuItem icon={IconLogout} label="Выйти" onClick={() => { onClose(); onLogout() }} danger />
     </div>

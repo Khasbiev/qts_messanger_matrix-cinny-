@@ -6,6 +6,7 @@ import UserMenu from './UserMenu'
 import NewDmModal from '../Modals/NewDmModal'
 import NewChannelModal from '../Modals/NewChannelModal'
 import SettingsModal from '../Modals/SettingsModal'
+import ContactsModal from '../Modals/ContactsModal'
 import { waitForRoom, isDirectRoom } from '../../lib/matrix'
 
 function formatChatTime(ts) {
@@ -62,10 +63,12 @@ export default function Sidebar({ client, activeRoom, onRoomSelect, onLogout, fu
   const [showNewChannel, setShowNewChannel] = useState(false)
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
+  const [showContacts, setShowContacts] = useState(false)
 
   const handleCreated = async (roomId) => {
     setShowNewDm(false)
     setShowNewChannel(false)
+    setShowContacts(false)
     try {
       const room = await waitForRoom(roomId)
       refresh()
@@ -119,6 +122,7 @@ export default function Sidebar({ client, activeRoom, onRoomSelect, onLogout, fu
         <UserMenu
           client={client}
           onClose={() => setShowUserMenu(false)}
+          onOpenContacts={() => setShowContacts(true)}
           onOpenSettings={() => setShowSettings(true)}
           onLogout={onLogout}
         />
@@ -179,6 +183,9 @@ export default function Sidebar({ client, activeRoom, onRoomSelect, onLogout, fu
       )}
       {showSettings && (
         <SettingsModal client={client} onClose={() => setShowSettings(false)} />
+      )}
+      {showContacts && (
+        <ContactsModal onClose={() => setShowContacts(false)} onOpenChat={handleCreated} />
       )}
     </div>
   )

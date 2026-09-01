@@ -163,6 +163,27 @@ export async function resolveMediaUrl(mxcUrl) {
   return URL.createObjectURL(blob)
 }
 
+export function getOwnProfile() {
+  if (!_client) throw new Error('Not connected')
+  const user = _client.getUser(_client.getUserId())
+  return {
+    displayName: user?.displayName || _client.getUserId().replace('@', '').split(':')[0],
+    avatarMxcUrl: user?.avatarUrl || null,
+  }
+}
+
+export async function updateDisplayName(name) {
+  if (!_client) throw new Error('Not connected')
+  await _client.setDisplayName(name)
+}
+
+export async function updateAvatar(file) {
+  if (!_client) throw new Error('Not connected')
+  const { content_uri: mxcUrl } = await _client.uploadContent(file, { type: file.type })
+  await _client.setAvatarUrl(mxcUrl)
+  return mxcUrl
+}
+
 export function isDirectRoom(client, roomId) {
   const directRoomIds = new Set(
     Object.values(client.getAccountData('m.direct')?.getContent() || {}).flat()
