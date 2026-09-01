@@ -1,36 +1,52 @@
-import { IconHash, IconAt, IconUsers, IconSearch, IconBell } from '@tabler/icons-react'
+import { IconSearch, IconBell } from '@tabler/icons-react'
+import { colorFor } from '../../lib/avatarColor'
+import { isDirectRoom } from '../../lib/matrix'
 
-export default function Header({ room }) {
+export default function Header({ client, room }) {
   const memberCount = room.getJoinedMemberCount()
-  const isDM = memberCount === 2
+  const isDM = isDirectRoom(client, room.roomId)
+  const color = colorFor(room.roomId)
+  const avatarLabel = isDM ? room.name.slice(0, 2).toUpperCase() : `#${room.name.slice(0, 1).toUpperCase()}`
 
   return (
     <div style={{
-      height: '52px',
+      height: '58px',
       padding: '0 16px',
       borderBottom: '1px solid var(--border)',
       background: 'var(--bg-surface)',
       display: 'flex',
       alignItems: 'center',
-      gap: '8px',
+      gap: '10px',
       flexShrink: 0,
     }}>
-      {isDM
-        ? <IconAt size={17} color="var(--text-secondary)" strokeWidth={2} />
-        : <IconHash size={17} color="var(--text-secondary)" strokeWidth={2} />
-      }
+      <div style={{
+        width: '36px',
+        height: '36px',
+        borderRadius: '50%',
+        background: color.bg,
+        color: color.fg,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontSize: '12px',
+        fontWeight: 600,
+        flexShrink: 0,
+      }}>
+        {avatarLabel}
+      </div>
 
-      <span style={{ fontWeight: 600, fontSize: '15px', color: 'var(--text-primary)' }}>
-        {room.name}
-      </span>
+      <div style={{ minWidth: 0 }}>
+        <div style={{ fontWeight: 600, fontSize: '15px', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {room.name}
+        </div>
+        <div style={{ fontSize: '12px', color: 'var(--accent-teal)', marginTop: '1px' }}>
+          {isDM ? 'в сети' : `${memberCount} участник${memberCount === 1 ? '' : memberCount < 5 ? 'а' : 'ов'}`}
+        </div>
+      </div>
 
       <div style={{ flex: 1 }} />
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '4px 8px', marginRight: '4px', color: 'var(--text-secondary)', fontSize: '13px' }}>
-          <IconUsers size={15} strokeWidth={2} />
-          <span>{memberCount}</span>
-        </div>
         {[IconSearch, IconBell].map((Icon, i) => (
           <button
             key={i}

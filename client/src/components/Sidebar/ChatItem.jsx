@@ -1,16 +1,19 @@
-import { IconHash } from '@tabler/icons-react'
+import { colorFor } from '../../lib/avatarColor'
 
 export default function ChatItem({ item, type, isActive, onSelect }) {
+  const color = colorFor(item.id)
+  const avatarLabel = type === 'channel' ? `#${item.name.slice(0, 1).toUpperCase()}` : item.avatar
+
   return (
     <div
       onClick={onSelect}
       style={{
         display: 'flex',
         alignItems: 'center',
-        gap: '7px',
-        padding: '5px 10px 5px 10px',
+        gap: '10px',
+        padding: '8px 10px',
         margin: '1px 6px',
-        borderRadius: '6px',
+        borderRadius: '8px',
         cursor: 'pointer',
         borderLeft: isActive ? '2px solid var(--accent-teal)' : '2px solid transparent',
         background: isActive ? 'var(--bg-card)' : 'transparent',
@@ -20,89 +23,68 @@ export default function ChatItem({ item, type, isActive, onSelect }) {
       onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = 'rgba(255,255,255,0.04)' }}
       onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'transparent' }}
     >
-      {type === 'channel' ? (
-        <ChannelItem item={item} isActive={isActive} />
-      ) : (
-        <DmItem item={item} isActive={isActive} />
-      )}
-    </div>
-  )
-}
-
-function ChannelItem({ item, isActive }) {
-  return (
-    <>
-      <IconHash
-        size={14}
-        color={isActive ? 'var(--text-secondary)' : 'var(--text-muted)'}
-        strokeWidth={2}
-        style={{ flexShrink: 0 }}
-      />
-      <span style={{
-        flex: 1,
-        fontSize: '14px',
-        color: isActive
-          ? 'var(--text-primary)'
-          : item.unread > 0 ? 'var(--text-secondary)' : 'var(--text-muted)',
-        fontWeight: item.unread > 0 ? 500 : 400,
-        overflow: 'hidden',
-        textOverflow: 'ellipsis',
-        whiteSpace: 'nowrap',
-      }}>
-        {item.name}
-      </span>
-      {item.unread > 0 && <Badge count={item.unread} />}
-    </>
-  )
-}
-
-function DmItem({ item, isActive }) {
-  return (
-    <>
+      {/* Avatar */}
       <div style={{ position: 'relative', flexShrink: 0 }}>
         <div style={{
-          width: '26px',
-          height: '26px',
+          width: '36px',
+          height: '36px',
           borderRadius: '50%',
-          background: isActive ? 'var(--accent-teal)' : 'var(--bg-card)',
-          border: '1px solid var(--border)',
+          background: color.bg,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          fontSize: '10px',
+          fontSize: '12px',
           fontWeight: 600,
-          color: isActive ? '#000' : 'var(--text-secondary)',
+          color: color.fg,
         }}>
-          {item.avatar}
+          {avatarLabel}
         </div>
-        {item.online && (
+        {type === 'dm' && item.online && (
           <div style={{
             position: 'absolute',
-            bottom: -1,
-            right: -1,
-            width: '8px',
-            height: '8px',
+            bottom: 0,
+            right: 0,
+            width: '9px',
+            height: '9px',
             borderRadius: '50%',
             background: '#3ba55c',
             border: '1.5px solid var(--bg-surface)',
           }} />
         )}
       </div>
-      <span style={{
-        flex: 1,
-        fontSize: '14px',
-        color: isActive
-          ? 'var(--text-primary)'
-          : item.unread > 0 ? 'var(--text-secondary)' : 'var(--text-muted)',
-        fontWeight: item.unread > 0 ? 500 : 400,
-        overflow: 'hidden',
-        textOverflow: 'ellipsis',
-        whiteSpace: 'nowrap',
-      }}>
-        {item.name}
-      </span>
-      {item.unread > 0 && <Badge count={item.unread} />}
-    </>
+
+      {/* Name + preview */}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{
+          fontSize: '14px',
+          color: isActive ? 'var(--text-primary)' : item.unread > 0 ? 'var(--text-primary)' : 'var(--text-secondary)',
+          fontWeight: item.unread > 0 ? 600 : 500,
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+        }}>
+          {item.name}
+        </div>
+        <div style={{
+          fontSize: '12px',
+          color: 'var(--text-muted)',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+          marginTop: '2px',
+        }}>
+          {item.preview || ' '}
+        </div>
+      </div>
+
+      {/* Time + badge */}
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '5px', flexShrink: 0 }}>
+        {item.time && (
+          <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{item.time}</span>
+        )}
+        {item.unread > 0 && <Badge count={item.unread} />}
+      </div>
+    </div>
   )
 }
 
@@ -112,12 +94,11 @@ function Badge({ count }) {
       background: 'var(--accent-orange)',
       color: '#fff',
       borderRadius: '10px',
-      padding: '1px 5px',
+      padding: '1px 6px',
       fontSize: '11px',
       fontWeight: 700,
       minWidth: '18px',
       textAlign: 'center',
-      flexShrink: 0,
     }}>
       {count}
     </span>

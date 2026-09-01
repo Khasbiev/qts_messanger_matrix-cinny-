@@ -163,6 +163,13 @@ export async function resolveMediaUrl(mxcUrl) {
   return URL.createObjectURL(blob)
 }
 
+export function isDirectRoom(client, roomId) {
+  const directRoomIds = new Set(
+    Object.values(client.getAccountData('m.direct')?.getContent() || {}).flat()
+  )
+  return directRoomIds.has(roomId)
+}
+
 export function waitForRoom(roomId, timeoutMs = 5000) {
   if (!_client) throw new Error('Not connected')
   return new Promise((resolve, reject) => {

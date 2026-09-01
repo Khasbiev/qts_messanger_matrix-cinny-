@@ -5,16 +5,43 @@ import ChatItem from './ChatItem'
 import UserFooter from './UserFooter'
 import NewDmModal from '../Modals/NewDmModal'
 import NewChannelModal from '../Modals/NewChannelModal'
-import { waitForRoom } from '../../lib/matrix'
+import { waitForRoom, isDirectRoom } from '../../lib/matrix'
+
+function formatChatTime(ts) {
+  if (!ts) return ''
+  const date = new Date(ts)
+  const now = new Date()
+  if (date.toDateString() === now.toDateString()) {
+    return date.toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit' })
+  }
+  const yesterday = new Date(now)
+  yesterday.setDate(now.getDate() - 1)
+  if (date.toDateString() === yesterday.toDateString()) return 'вчера'
+  return date.toLocaleDateString('ru', { day: '2-digit', month: '2-digit' })
+}
+
+function getPreview(room) {
+  const events = room.getLiveTimeline().getEvents()
+  for (let i = events.length - 1; i >= 0; i--) {
+    const ev = events[i]
+    if (ev.getType() !== 'm.room.message') continue
+    const content = ev.getContent()
+    if (!content?.body) continue
+
+    let text = content.body
+    if (content.msgtype === 'm.image') text = '📷 Изображение'
+    else if (content.msgtype === 'm.file') text = '📎 Файл'
+
+    return { text, time: formatChatTime(ev.getTs()) }
+  }
+  return { text: '', time: '' }
+}
 
 function categorize(client, rooms) {
-  const directRoomIds = new Set(
-    Object.values(client.getAccountData('m.direct')?.getContent() || {}).flat()
-  )
   const channels = []
   const dms = []
   for (const room of rooms) {
-    if (directRoomIds.has(room.roomId)) {
+    if (isDirectRoom(client, room.roomId)) {
       dms.push(room)
     } else {
       channels.push(room)
@@ -49,10 +76,12 @@ export default function Sidebar({ client, activeRoom, onRoomSelect, onLogout }) 
     client.on(ClientEvent.Sync, refresh)
     client.on(RoomEvent.MyMembership, refresh)
     client.on(ClientEvent.AccountData, refresh)
+    client.on(RoomEvent.Timeline, refresh)
     return () => {
       client.off(ClientEvent.Sync, refresh)
       client.off(RoomEvent.MyMembership, refresh)
       client.off(ClientEvent.AccountData, refresh)
+      client.off(RoomEvent.Timeline, refresh)
     }
   }, [client, refresh])
 
@@ -85,15 +114,18 @@ export default function Sidebar({ client, activeRoom, onRoomSelect, onLogout }) 
         <SectionHeader label="КАНАЛЫ" onClick={() => setShowNewChannel(true)} />
         {rooms.channels.length > 0 && (
           <>
-            {rooms.channels.map(room => (
-              <ChatItem
-                key={room.roomId}
-                item={{ id: room.roomId, name: room.name, unread: room.getUnreadNotificationCount() }}
-                type="channel"
-                isActive={activeRoom?.roomId === room.roomId}
-                onSelect={() => onRoomSelect(room)}
-              />
-            ))}
+            {rooms.channels.map(room => {
+              const preview = getPreview(room)
+              return (
+                <ChatItem
+                  key={room.roomId}
+                  item={{ id: room.roomId, name: room.name, unread: room.getUnreadNotificationCount(), preview: preview.text, time: preview.time }}
+                  type="channel"
+                  isActive={activeRoom?.roomId === room.roomId}
+                  onSelect={() => onRoomSelect(room)}
+                />
+              )
+            })}
           </>
         )}
 
@@ -103,10 +135,11 @@ export default function Sidebar({ client, activeRoom, onRoomSelect, onLogout }) 
             {rooms.dms.map(room => {
               const other = room.getJoinedMembers().find(m => m.userId !== client.getUserId())
               const name = other?.name || room.name
+              const preview = getPreview(room)
               return (
                 <ChatItem
                   key={room.roomId}
-                  item={{ id: room.roomId, name, avatar: name.slice(0, 2).toUpperCase(), online: false, unread: room.getUnreadNotificationCount() }}
+                  item={{ id: room.roomId, name, avatar: name.slice(0, 2).toUpperCase(), online: false, unread: room.getUnreadNotificationCount(), preview: preview.text, time: preview.time }}
                   type="dm"
                   isActive={activeRoom?.roomId === room.roomId}
                   onSelect={() => onRoomSelect(room)}

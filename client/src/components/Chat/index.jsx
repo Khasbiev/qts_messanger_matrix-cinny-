@@ -12,7 +12,7 @@ export default function Chat({ client, room }) {
       background: 'var(--bg-primary)',
       minWidth: 0,
     }}>
-      <Header room={room} />
+      <Header client={client} room={room} />
       <MessageList client={client} room={room} />
       <InputArea client={client} room={room} />
     </div>
