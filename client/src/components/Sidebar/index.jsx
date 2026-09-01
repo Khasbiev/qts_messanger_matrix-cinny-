@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback } from 'react'
-import { IconSearch, IconPlus } from '@tabler/icons-react'
+import { IconSearch, IconPlus, IconMenu2 } from '@tabler/icons-react'
 import { ClientEvent, RoomEvent } from 'matrix-js-sdk'
 import ChatItem from './ChatItem'
-import UserFooter from './UserFooter'
+import UserMenu from './UserMenu'
 import NewDmModal from '../Modals/NewDmModal'
 import NewChannelModal from '../Modals/NewChannelModal'
+import SettingsModal from '../Modals/SettingsModal'
 import { waitForRoom, isDirectRoom } from '../../lib/matrix'
 
 function formatChatTime(ts) {
@@ -50,7 +51,7 @@ function categorize(client, rooms) {
   return { channels, dms }
 }
 
-export default function Sidebar({ client, activeRoom, onRoomSelect, onLogout }) {
+export default function Sidebar({ client, activeRoom, onRoomSelect, onLogout, fullWidth }) {
   const [rooms, setRooms] = useState(() => categorize(client, client.getRooms()))
 
   const refresh = useCallback(() => {
@@ -59,6 +60,8 @@ export default function Sidebar({ client, activeRoom, onRoomSelect, onLogout }) 
 
   const [showNewDm, setShowNewDm] = useState(false)
   const [showNewChannel, setShowNewChannel] = useState(false)
+  const [showUserMenu, setShowUserMenu] = useState(false)
+  const [showSettings, setShowSettings] = useState(false)
 
   const handleCreated = async (roomId) => {
     setShowNewDm(false)
@@ -87,27 +90,39 @@ export default function Sidebar({ client, activeRoom, onRoomSelect, onLogout }) 
 
   return (
     <div style={{
-      width: '240px',
+      width: fullWidth ? '100%' : '240px',
       flexShrink: 0,
       background: 'var(--bg-surface)',
       display: 'flex',
       flexDirection: 'column',
       height: '100vh',
-      borderRight: '1px solid var(--border)',
+      borderRight: fullWidth ? 'none' : '1px solid var(--border)',
+      position: 'relative',
     }}>
-      {/* Logo */}
-      <div style={{ height: '52px', padding: '0 14px', display: 'flex', alignItems: 'center', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
-        <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '17px', fontWeight: 700, color: 'var(--accent-teal)', marginRight: '1px' }}>{'>'}</span>
-        <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '17px', fontWeight: 700, color: 'var(--text-primary)' }}>qts.dev</span>
-      </div>
-
-      {/* Search */}
-      <div style={{ padding: '10px 10px 6px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '6px', padding: '6px 10px' }}>
+      {/* Top bar: hamburger menu + search */}
+      <div style={{ height: '52px', padding: '0 10px', display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
+        <button
+          onClick={() => setShowUserMenu(v => !v)}
+          style={{ width: '32px', height: '32px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)', flexShrink: 0, transition: 'all 0.12s' }}
+          onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-card)'; e.currentTarget.style.color = 'var(--text-primary)' }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = 'var(--text-secondary)' }}
+        >
+          <IconMenu2 size={19} strokeWidth={2} />
+        </button>
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '6px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '6px', padding: '6px 10px', minWidth: 0 }}>
           <IconSearch size={13} color="var(--text-muted)" strokeWidth={2} />
           <input placeholder="Поиск..." style={{ background: 'none', border: 'none', outline: 'none', color: 'var(--text-primary)', width: '100%', fontSize: '13px' }} />
         </div>
       </div>
+
+      {showUserMenu && (
+        <UserMenu
+          client={client}
+          onClose={() => setShowUserMenu(false)}
+          onOpenSettings={() => setShowSettings(true)}
+          onLogout={onLogout}
+        />
+      )}
 
       {/* Room list */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '0 0 8px' }}>
@@ -156,13 +171,14 @@ export default function Sidebar({ client, activeRoom, onRoomSelect, onLogout }) 
         )}
       </div>
 
-      <UserFooter client={client} onLogout={onLogout} />
-
       {showNewDm && (
         <NewDmModal onClose={() => setShowNewDm(false)} onCreated={handleCreated} />
       )}
       {showNewChannel && (
         <NewChannelModal onClose={() => setShowNewChannel(false)} onCreated={handleCreated} />
+      )}
+      {showSettings && (
+        <SettingsModal client={client} onClose={() => setShowSettings(false)} />
       )}
     </div>
   )

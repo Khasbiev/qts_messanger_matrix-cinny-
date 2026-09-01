@@ -1,12 +1,19 @@
-import { IconSearch, IconBell } from '@tabler/icons-react'
+import { IconSearch, IconBell, IconArrowLeft, IconLayoutSidebarLeftCollapse, IconLayoutSidebarLeftExpand } from '@tabler/icons-react'
 import { colorFor } from '../../lib/avatarColor'
 import { isDirectRoom } from '../../lib/matrix'
 
-export default function Header({ client, room }) {
+const NAV_ICON = {
+  back: IconArrowLeft,
+  collapse: IconLayoutSidebarLeftCollapse,
+  expand: IconLayoutSidebarLeftExpand,
+}
+
+export default function Header({ client, room, navMode, onNav }) {
   const memberCount = room.getJoinedMemberCount()
   const isDM = isDirectRoom(client, room.roomId)
   const color = colorFor(room.roomId)
   const avatarLabel = isDM ? room.name.slice(0, 2).toUpperCase() : `#${room.name.slice(0, 1).toUpperCase()}`
+  const NavIcon = NAV_ICON[navMode]
 
   return (
     <div style={{
@@ -19,6 +26,18 @@ export default function Header({ client, room }) {
       gap: '10px',
       flexShrink: 0,
     }}>
+      {NavIcon && (
+        <button
+          onClick={onNav}
+          title={navMode === 'back' ? 'Назад к чатам' : navMode === 'collapse' ? 'Свернуть список чатов' : 'Показать список чатов'}
+          style={{ width: '32px', height: '32px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)', flexShrink: 0, transition: 'all 0.12s' }}
+          onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-card)'; e.currentTarget.style.color = 'var(--text-primary)' }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = 'var(--text-secondary)' }}
+        >
+          <NavIcon size={19} strokeWidth={2} />
+        </button>
+      )}
+
       <div style={{
         width: '36px',
         height: '36px',

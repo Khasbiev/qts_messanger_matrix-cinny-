@@ -2,7 +2,7 @@ import Header from './Header'
 import MessageList from './MessageList'
 import InputArea from './InputArea'
 
-export default function Chat({ client, room }) {
+export default function Chat({ client, room, navMode, onNav }) {
   return (
     <div style={{
       flex: 1,
@@ -12,7 +12,7 @@ export default function Chat({ client, room }) {
       background: 'var(--bg-primary)',
       minWidth: 0,
     }}>
-      <Header client={client} room={room} />
+      <Header client={client} room={room} navMode={navMode} onNav={onNav} />
       <MessageList client={client} room={room} />
       <InputArea client={client} room={room} />
     </div>
