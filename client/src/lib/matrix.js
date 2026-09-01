@@ -71,6 +71,18 @@ export async function sendMessage(roomId, text) {
   return _client.sendTextMessage(roomId, text)
 }
 
+export async function createChannel({ name, topic, inviteUserIds }) {
+  if (!_client) throw new Error('Not connected')
+  const { room_id } = await _client.createRoom({
+    name,
+    topic: topic || undefined,
+    visibility: 'private',
+    preset: 'private_chat',
+    invite: inviteUserIds,
+  })
+  return room_id
+}
+
 export async function searchUsers(term) {
   if (!_client) throw new Error('Not connected')
   if (!term.trim()) return []

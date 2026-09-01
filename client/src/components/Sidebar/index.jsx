@@ -4,6 +4,7 @@ import { ClientEvent, RoomEvent } from 'matrix-js-sdk'
 import ChatItem from './ChatItem'
 import UserFooter from './UserFooter'
 import NewDmModal from '../Modals/NewDmModal'
+import NewChannelModal from '../Modals/NewChannelModal'
 import { waitForRoom } from '../../lib/matrix'
 
 function categorize(client, rooms) {
@@ -30,9 +31,11 @@ export default function Sidebar({ client, activeRoom, onRoomSelect, onLogout }) 
   }, [client])
 
   const [showNewDm, setShowNewDm] = useState(false)
+  const [showNewChannel, setShowNewChannel] = useState(false)
 
   const handleCreated = async (roomId) => {
     setShowNewDm(false)
+    setShowNewChannel(false)
     try {
       const room = await waitForRoom(roomId)
       refresh()
@@ -79,9 +82,9 @@ export default function Sidebar({ client, activeRoom, onRoomSelect, onLogout }) 
 
       {/* Room list */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '0 0 8px' }}>
+        <SectionHeader label="КАНАЛЫ" onClick={() => setShowNewChannel(true)} />
         {rooms.channels.length > 0 && (
           <>
-            <SectionHeader label="КАНАЛЫ" />
             {rooms.channels.map(room => (
               <ChatItem
                 key={room.roomId}
@@ -124,6 +127,9 @@ export default function Sidebar({ client, activeRoom, onRoomSelect, onLogout }) 
 
       {showNewDm && (
         <NewDmModal onClose={() => setShowNewDm(false)} onCreated={handleCreated} />
+      )}
+      {showNewChannel && (
+        <NewChannelModal onClose={() => setShowNewChannel(false)} onCreated={handleCreated} />
       )}
     </div>
   )
