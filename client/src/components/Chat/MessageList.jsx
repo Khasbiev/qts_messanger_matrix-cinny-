@@ -184,13 +184,24 @@ export default function MessageList({ client, room, onEdit, onReply }) {
       if (eventRoom?.roomId !== room.roomId) return
       setMessages(extractMessages(client, room))
     }
+    // A gappy /sync (reconnect after sleep, long backgrounding) discards the
+    // loaded timeline and starts a fresh one — any "reached the beginning"
+    // state from before no longer applies, and older messages need to be
+    // reloadable again.
+    const onTimelineReset = (resetRoom) => {
+      if (resetRoom?.roomId !== room.roomId) return
+      setReachedStart(false)
+      setMessages(extractMessages(client, room))
+    }
     client.on(RoomEvent.Timeline, recomputeOnRelevantEvent)
     client.on(RoomEvent.LocalEchoUpdated, recomputeOnRelevantEvent)
     client.on(RoomEvent.Redaction, onRedaction)
+    client.on(RoomEvent.TimelineReset, onTimelineReset)
     return () => {
       client.off(RoomEvent.Timeline, recomputeOnRelevantEvent)
       client.off(RoomEvent.LocalEchoUpdated, recomputeOnRelevantEvent)
       client.off(RoomEvent.Redaction, onRedaction)
+      client.off(RoomEvent.TimelineReset, onTimelineReset)
     }
   }, [client, room])
 
@@ -245,13 +256,24 @@ export default function MessageList({ client, room, onEdit, onReply }) {
     }
   }
 
-  if (messages.length === 0) {
-    return (
-      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ color: 'var(--text-muted)', fontSize: '13px' }}>Сообщений пока нет</div>
-      </div>
-    )
-  }
+  // handleScroll alone can't drive pagination when there's nothing to
+  // scroll: if the loaded content doesn't overflow the container (including
+  // the messages.length === 0 case), no scroll event ever fires. It also
+  // can't recover if a fetched batch adds little rendered height (mostly
+  // state events/redactions) and scrollTop stays under the trigger
+  // threshold — programmatically setting an unchanged scrollTop fires no
+  // scroll event either. This effect re-checks after every batch resolves
+  // (loadingHistory flips back to false) and after the room's initial
+  // messages populate, independent of any scroll event. It self-terminates
+  // via the same reachedStart/loadingHistory guards loadMoreHistory already
+  // has, so it can't loop forever.
+  useEffect(() => {
+    const container = containerRef.current
+    if (!container || loadingHistory || reachedStart) return
+    if (container.scrollHeight <= container.clientHeight || container.scrollTop < 150) {
+      loadMoreHistory()
+    }
+  }, [messages, loadingHistory, reachedStart])
 
   return (
     <div
@@ -268,9 +290,15 @@ export default function MessageList({ client, room, onEdit, onReply }) {
           )}
         </div>
       )}
-      {messages.map(msg => (
-        <MessageBubble key={msg.id} message={msg} roomId={room.roomId} onEdit={onEdit} onReply={onReply} />
-      ))}
+      {messages.length === 0 ? (
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ color: 'var(--text-muted)', fontSize: '13px' }}>Сообщений пока нет</div>
+        </div>
+      ) : (
+        messages.map(msg => (
+          <MessageBubble key={msg.id} message={msg} roomId={room.roomId} onEdit={onEdit} onReply={onReply} />
+        ))
+      )}
       <div ref={bottomRef} style={{ height: '4px' }} />
     </div>
   )
