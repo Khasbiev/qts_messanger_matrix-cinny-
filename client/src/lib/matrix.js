@@ -242,3 +242,27 @@ export function waitForRoom(roomId, timeoutMs = 5000) {
     }, 200)
   })
 }
+
+export async function sendReaction(roomId, eventId, emoji) {
+  if (!_client) throw new Error('Not connected')
+  return _client.sendEvent(roomId, 'm.reaction', {
+    'm.relates_to': { rel_type: 'm.annotation', event_id: eventId, key: emoji },
+  })
+}
+
+export async function removeReaction(roomId, reactionEventId) {
+  if (!_client) throw new Error('Not connected')
+  return _client.redactEvent(roomId, reactionEventId)
+}
+
+export async function toggleReaction(roomId, message, emoji) {
+  if (!_client) throw new Error('Not connected')
+  const existing = message.reactions?.find(r => r.reactedByMe)
+  if (existing && existing.emoji === emoji) {
+    return removeReaction(roomId, existing.myEventId)
+  }
+  if (existing) {
+    await removeReaction(roomId, existing.myEventId)
+  }
+  return sendReaction(roomId, message.id, emoji)
+}

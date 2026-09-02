@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { IconDownload, IconLoader2, IconPlayerPlay, IconPlayerPause } from '@tabler/icons-react'
-import { resolveMediaUrl } from '../../lib/matrix'
+import { resolveMediaUrl, toggleReaction } from '../../lib/matrix'
+import MessageActions from './MessageActions'
 
 function formatDuration(totalSeconds) {
   const m = Math.floor(totalSeconds / 60)
@@ -193,7 +194,9 @@ function DownloadButton({ mxcUrl, name }) {
   )
 }
 
-export default function MessageBubble({ message }) {
+export default function MessageBubble({ message, roomId }) {
+  const [hovered, setHovered] = useState(false)
+
   if (message.type === 'date') {
     return (
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '16px 16px 8px' }}>
@@ -216,14 +219,27 @@ export default function MessageBubble({ message }) {
 
   const { isOwn, sender, avatar, time, text, file, image, voice, roundVideo, reactions, readBy } = message
 
+  const handleReact = async (emoji) => {
+    try {
+      await toggleReaction(roomId, message, emoji)
+    } catch (err) {
+      console.error('React failed:', err)
+    }
+  }
+
   return (
-    <div style={{
-      display: 'flex',
-      flexDirection: isOwn ? 'row-reverse' : 'row',
-      alignItems: 'flex-end',
-      gap: '8px',
-      padding: '2px 16px',
-    }}>
+    <div
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        position: 'relative',
+        display: 'flex',
+        flexDirection: isOwn ? 'row-reverse' : 'row',
+        alignItems: 'flex-end',
+        gap: '8px',
+        padding: '2px 16px',
+      }}>
+      {hovered && <MessageActions message={message} onReact={handleReact} />}
       {/* Avatar (others only) */}
       {!isOwn && (
         <div style={{
@@ -356,9 +372,10 @@ export default function MessageBubble({ message }) {
           {reactions?.map((r, i) => (
             <span
               key={i}
+              onClick={() => handleReact(r.emoji)}
               style={{
                 background: 'var(--bg-card)',
-                border: '1px solid var(--border)',
+                border: '1px solid ' + (r.reactedByMe ? 'var(--accent-teal)' : 'var(--border)'),
                 borderRadius: '10px',
                 padding: '2px 7px',
                 fontSize: '12px',
@@ -366,7 +383,7 @@ export default function MessageBubble({ message }) {
                 userSelect: 'none',
               }}
               onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--accent-teal)'}
-              onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border)'}
+              onMouseLeave={e => e.currentTarget.style.borderColor = (r.reactedByMe ? 'var(--accent-teal)' : 'var(--border)')}
             >
               {r.emoji}{' '}
               <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{r.count}</span>

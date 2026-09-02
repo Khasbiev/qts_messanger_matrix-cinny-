@@ -6,7 +6,7 @@ const EMOJI = [
   '❌', '⚡', '👋', '🤝', '🙌', '😴', '🤯', '🥳', '😱', '🚀',
 ]
 
-export default function EmojiPicker({ onPick, onClose }) {
+export default function EmojiPicker({ onPick, onClose, style }) {
   const ref = useRef(null)
 
   useEffect(() => {
@@ -37,6 +37,7 @@ export default function EmojiPicker({ onPick, onClose }) {
         display: 'grid',
         gridTemplateColumns: 'repeat(6, 1fr)',
         gap: '2px',
+        ...style,
       }}
     >
       {EMOJI.map(e => (
