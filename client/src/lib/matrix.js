@@ -1,4 +1,4 @@
-import { createClient, ClientEvent } from 'matrix-js-sdk'
+import { createClient, ClientEvent, RoomEvent } from 'matrix-js-sdk'
 
 const STORAGE_KEY = 'qts_matrix_session'
 
@@ -49,11 +49,34 @@ export function startSync(client) {
 
     client.once(ClientEvent.Sync, (state) => {
       clearTimeout(timer)
-      if (state === 'PREPARED' || state === 'SYNCING') resolve()
-      else reject(new Error(`Sync failed: ${state}`))
+      if (state === 'PREPARED' || state === 'SYNCING') {
+        autoJoinInvites(client)
+        resolve()
+      } else {
+        reject(new Error(`Sync failed: ${state}`))
+      }
     })
 
     client.startClient({ initialSyncLimit: 30 })
+  })
+}
+
+// There is no invite-accept UI anywhere in this app, and registration is
+// already invite-only/admin-controlled (small trusted deployment) — so an
+// unjoined invite is never a feature, only a stuck room nobody can see.
+// Without this, starting a new DM/channel from either side leaves the
+// other person invited-but-never-joined: they see nothing, and the two
+// users end up writing into two different rooms without knowing it.
+function autoJoinInvites(client) {
+  for (const room of client.getRooms()) {
+    if (room.getMyMembership() === 'invite') {
+      client.joinRoom(room.roomId).catch(err => console.error('Auto-join failed:', err))
+    }
+  }
+  client.on(RoomEvent.MyMembership, (room, membership) => {
+    if (membership === 'invite') {
+      client.joinRoom(room.roomId).catch(err => console.error('Auto-join failed:', err))
+    }
   })
 }
 
