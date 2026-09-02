@@ -145,6 +145,14 @@ export default function MessageList({ client, room, onEdit, onReply }) {
   const isNearBottomRef = useRef(true)
   const [loadingHistory, setLoadingHistory] = useState(false)
   const [reachedStart, setReachedStart] = useState(false)
+  // MessageList is rendered without a `key` in Chat/index.jsx, so switching
+  // rooms reuses this component instance — only the `room` prop changes, it
+  // doesn't remount. loadMoreHistory's async continuation below closes over
+  // the room it was called for; this ref lets it detect a room switch that
+  // happened while its scrollback() call was in flight, so it can bail out
+  // instead of applying a stale room's result to the now-current room.
+  const roomRef = useRef(room)
+  roomRef.current = room
 
   useEffect(() => {
     isNearBottomRef.current = true
@@ -206,21 +214,25 @@ export default function MessageList({ client, room, onEdit, onReply }) {
   const loadMoreHistory = async () => {
     const container = containerRef.current
     if (!container || loadingHistory || reachedStart) return
+    const loadedRoom = room
     setLoadingHistory(true)
     const prevScrollHeight = container.scrollHeight
+    const prevScrollTop = container.scrollTop
     try {
-      const updatedRoom = await client.scrollback(room, 30)
+      const updatedRoom = await client.scrollback(loadedRoom, 30)
+      if (roomRef.current !== loadedRoom) return
       const hasMore = updatedRoom.getLiveTimeline().getPaginationToken(EventTimeline.BACKWARDS) != null
       if (!hasMore) setReachedStart(true)
       requestAnimationFrame(() => {
+        if (roomRef.current !== loadedRoom) return
         if (containerRef.current) {
-          containerRef.current.scrollTop = containerRef.current.scrollHeight - prevScrollHeight
+          containerRef.current.scrollTop = prevScrollTop + (containerRef.current.scrollHeight - prevScrollHeight)
         }
       })
     } catch (err) {
       console.error('History pagination failed:', err)
     } finally {
-      setLoadingHistory(false)
+      if (roomRef.current === loadedRoom) setLoadingHistory(false)
     }
   }
 
