@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
-import { RoomEvent } from 'matrix-js-sdk'
+import { RoomEvent, EventTimeline } from 'matrix-js-sdk'
+import { IconLoader2 } from '@tabler/icons-react'
 import MessageBubble from './MessageBubble'
 
 function formatFileSize(bytes) {
@@ -142,9 +143,13 @@ export default function MessageList({ client, room, onEdit, onReply }) {
   const bottomRef = useRef(null)
   const containerRef = useRef(null)
   const isNearBottomRef = useRef(true)
+  const [loadingHistory, setLoadingHistory] = useState(false)
+  const [reachedStart, setReachedStart] = useState(false)
 
   useEffect(() => {
     isNearBottomRef.current = true
+    setLoadingHistory(false)
+    setReachedStart(false)
     setMessages(extractMessages(client, room))
   }, [client, room])
 
@@ -198,10 +203,34 @@ export default function MessageList({ client, room, onEdit, onReply }) {
     client.sendReadReceipt(lastEvent).catch(err => console.error('Read receipt failed:', err))
   }, [client, room, messages])
 
+  const loadMoreHistory = async () => {
+    const container = containerRef.current
+    if (!container || loadingHistory || reachedStart) return
+    setLoadingHistory(true)
+    const prevScrollHeight = container.scrollHeight
+    try {
+      const updatedRoom = await client.scrollback(room, 30)
+      const hasMore = updatedRoom.getLiveTimeline().getPaginationToken(EventTimeline.BACKWARDS) != null
+      if (!hasMore) setReachedStart(true)
+      requestAnimationFrame(() => {
+        if (containerRef.current) {
+          containerRef.current.scrollTop = containerRef.current.scrollHeight - prevScrollHeight
+        }
+      })
+    } catch (err) {
+      console.error('History pagination failed:', err)
+    } finally {
+      setLoadingHistory(false)
+    }
+  }
+
   const handleScroll = () => {
     const container = containerRef.current
     if (!container) return
     isNearBottomRef.current = container.scrollHeight - container.scrollTop - container.clientHeight < 120
+    if (container.scrollTop < 150 && !loadingHistory && !reachedStart) {
+      loadMoreHistory()
+    }
   }
 
   if (messages.length === 0) {
@@ -218,6 +247,15 @@ export default function MessageList({ client, room, onEdit, onReply }) {
       onScroll={handleScroll}
       style={{ flex: 1, overflowY: 'auto', padding: '8px 0 4px', display: 'flex', flexDirection: 'column', gap: '1px' }}
     >
+      {(loadingHistory || reachedStart) && (
+        <div style={{ display: 'flex', justifyContent: 'center', padding: '10px 0' }}>
+          {loadingHistory ? (
+            <IconLoader2 size={18} className="spin" color="var(--text-muted)" />
+          ) : (
+            <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Начало истории</span>
+          )}
+        </div>
+      )}
       {messages.map(msg => (
         <MessageBubble key={msg.id} message={msg} roomId={room.roomId} onEdit={onEdit} onReply={onReply} />
       ))}
