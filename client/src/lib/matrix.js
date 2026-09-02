@@ -184,6 +184,39 @@ export async function updateAvatar(file) {
   return mxcUrl
 }
 
+export async function uploadVoiceMessage(roomId, blob, durationMs) {
+  if (!_client) throw new Error('Not connected')
+  const mimetype = blob.type || 'audio/ogg'
+  const { content_uri: mxcUrl } = await _client.uploadContent(blob, { type: mimetype })
+
+  const content = {
+    msgtype: 'm.audio',
+    body: 'Голосовое сообщение',
+    url: mxcUrl,
+    info: { mimetype, size: blob.size, duration: durationMs },
+    'org.matrix.msc1767.audio': { duration: durationMs },
+    'org.matrix.msc3245.voice': {},
+  }
+
+  return _client.sendMessage(roomId, content)
+}
+
+export async function uploadVideoNote(roomId, blob, durationMs) {
+  if (!_client) throw new Error('Not connected')
+  const mimetype = blob.type || 'video/webm'
+  const { content_uri: mxcUrl } = await _client.uploadContent(blob, { type: mimetype })
+
+  const content = {
+    msgtype: 'm.video',
+    body: 'Видеосообщение',
+    url: mxcUrl,
+    info: { mimetype, size: blob.size, duration: durationMs, w: 240, h: 240 },
+    'dev.qts.round_video': true,
+  }
+
+  return _client.sendMessage(roomId, content)
+}
+
 export function isDirectRoom(client, roomId) {
   const directRoomIds = new Set(
     Object.values(client.getAccountData('m.direct')?.getContent() || {}).flat()

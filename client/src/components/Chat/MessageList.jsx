@@ -37,6 +37,16 @@ function extractMessages(client, room) {
         mxcUrl: content.url,
         name: content.body,
       }
+    } else if (content.msgtype === 'm.audio' && content.url && content['org.matrix.msc3245.voice']) {
+      base.voice = {
+        mxcUrl: content.url,
+        durationMs: content.info?.duration || content['org.matrix.msc1767.audio']?.duration || 0,
+      }
+    } else if (content.msgtype === 'm.video' && content.url && content['dev.qts.round_video']) {
+      base.roundVideo = {
+        mxcUrl: content.url,
+        durationMs: content.info?.duration || 0,
+      }
     } else if (content.msgtype === 'm.file' && content.url) {
       base.file = {
         mxcUrl: content.url,

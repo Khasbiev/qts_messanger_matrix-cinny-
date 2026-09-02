@@ -1,28 +1,44 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import {
-  IconBold, IconItalic, IconList,
-  IconPaperclip, IconMoodSmile, IconAt, IconSend,
+  IconPaperclip, IconMoodSmile, IconSend,
+  IconMicrophone, IconVideo, IconTrash,
 } from '@tabler/icons-react'
-import { sendMessage, uploadFile } from '../../lib/matrix'
+import { sendMessage, uploadFile, uploadVoiceMessage, uploadVideoNote } from '../../lib/matrix'
+import { startRecording } from '../../lib/mediaRecorder'
+import EmojiPicker from './EmojiPicker'
+
+function formatTimer(ms) {
+  const totalSeconds = Math.floor(ms / 1000)
+  const m = Math.floor(totalSeconds / 60)
+  const s = totalSeconds % 60
+  return `${m}:${s.toString().padStart(2, '0')}`
+}
 
 export default function InputArea({ room }) {
   const [value, setValue] = useState('')
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState('')
+  const [showEmoji, setShowEmoji] = useState(false)
+  const [recording, setRecording] = useState(null) // { kind, controller, startedAt }
+  const [now, setNow] = useState(0)
   const textareaRef = useRef(null)
   const fileInputRef = useRef(null)
+  const videoPreviewRef = useRef(null)
 
   const placeholder = `Написать в ${room.name}...`
+  const canSend = value.trim().length > 0
 
-  const TOOLBAR = [
-    { Icon: IconBold,      title: 'Жирный (Ctrl+B)' },
-    { Icon: IconItalic,    title: 'Курсив (Ctrl+I)'  },
-    { Icon: IconList,      title: 'Список'            },
-    null,
-    { Icon: IconPaperclip, title: 'Прикрепить файл', onClick: () => fileInputRef.current?.click() },
-    { Icon: IconMoodSmile, title: 'Эмодзи'            },
-    { Icon: IconAt,        title: 'Упомянуть'         },
-  ]
+  useEffect(() => {
+    if (!recording) return
+    const interval = setInterval(() => setNow(Date.now()), 250)
+    return () => clearInterval(interval)
+  }, [recording])
+
+  useEffect(() => {
+    if (recording?.kind === 'video' && videoPreviewRef.current) {
+      videoPreviewRef.current.srcObject = recording.controller.stream
+    }
+  }, [recording])
 
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -49,6 +65,11 @@ export default function InputArea({ room }) {
     e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px'
   }
 
+  const insertEmoji = (emoji) => {
+    setValue(v => v + emoji)
+    textareaRef.current?.focus()
+  }
+
   const handleFileChange = async (e) => {
     const file = e.target.files?.[0]
     e.target.value = ''
@@ -64,70 +85,136 @@ export default function InputArea({ room }) {
     }
   }
 
-  const canSend = value.trim().length > 0
+  const handleStartRecording = async (kind) => {
+    setUploadError('')
+    try {
+      const controller = await startRecording(kind)
+      setRecording({ kind, controller, startedAt: Date.now() })
+      setNow(Date.now())
+    } catch {
+      setUploadError(kind === 'video' ? 'Нет доступа к камере' : 'Нет доступа к микрофону')
+    }
+  }
+
+  const handleCancelRecording = () => {
+    recording?.controller.cancel()
+    setRecording(null)
+  }
+
+  const handleSendRecording = async () => {
+    if (!recording) return
+    const { kind, controller, startedAt } = recording
+    const durationMs = Date.now() - startedAt
+    setRecording(null)
+    if (durationMs < 500) return // too short to be intentional
+    setUploading(true)
+    try {
+      const blob = await controller.stop()
+      if (kind === 'voice') await uploadVoiceMessage(room.roomId, blob, durationMs)
+      else await uploadVideoNote(room.roomId, blob, durationMs)
+    } catch (err) {
+      setUploadError(err.data?.error || err.message || 'Не удалось отправить запись')
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  const elapsedMs = recording ? now - recording.startedAt : 0
 
   return (
-    <div style={{ padding: '0 16px 16px', flexShrink: 0 }}>
+    <div style={{ padding: '0 16px 16px', flexShrink: 0, position: 'relative' }}>
       <input ref={fileInputRef} type="file" style={{ display: 'none' }} onChange={handleFileChange} />
+
+      {showEmoji && <EmojiPicker onPick={insertEmoji} onClose={() => setShowEmoji(false)} />}
+
       <div
-        style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '10px', overflow: 'hidden', transition: 'border-color 0.15s' }}
+        style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '24px', overflow: 'hidden', transition: 'border-color 0.15s' }}
         onFocusCapture={e => e.currentTarget.style.borderColor = '#2a2a2c'}
         onBlurCapture={e => e.currentTarget.style.borderColor = 'var(--border)'}
       >
-        {/* Toolbar */}
-        <div style={{ display: 'flex', alignItems: 'center', padding: '8px 10px', gap: '2px', borderBottom: '1px solid var(--border)' }}>
-          {TOOLBAR.map((btn, i) =>
-            btn === null ? (
-              <div key={i} style={{ width: '1px', height: '16px', background: 'var(--border)', margin: '0 4px', flexShrink: 0 }} />
-            ) : (
-              <button
-                key={i}
-                title={btn.title}
-                onClick={btn.onClick}
-                style={{ width: '28px', height: '26px', borderRadius: '5px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', transition: 'all 0.1s', flexShrink: 0 }}
-                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.07)'; e.currentTarget.style.color = 'var(--text-primary)' }}
-                onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = 'var(--text-muted)' }}
-              >
-                <btn.Icon size={15} strokeWidth={2} />
-              </button>
-            )
-          )}
-        </div>
+        {recording ? (
+          <div style={{ display: 'flex', alignItems: 'center', padding: '8px 10px', gap: '10px', height: '40px' }}>
+            <RoundIconButton onClick={handleCancelRecording} title="Отменить">
+              <IconTrash size={17} strokeWidth={2} color="#ff6b6b" />
+            </RoundIconButton>
 
-        {/* Input row */}
-        <div style={{ display: 'flex', alignItems: 'flex-end', padding: '8px 10px', gap: '8px' }}>
-          <textarea
-            ref={textareaRef}
-            value={value}
-            onChange={handleInput}
-            onKeyDown={handleKeyDown}
-            placeholder={placeholder}
-            rows={1}
-            style={{ flex: 1, background: 'none', border: 'none', outline: 'none', color: 'var(--text-primary)', fontSize: '14px', lineHeight: '1.5', overflowY: 'hidden', minHeight: '22px', maxHeight: '120px', paddingTop: '1px' }}
-          />
-          <button
-            onClick={handleSend}
-            style={{
-              width: '34px', height: '34px', borderRadius: '8px',
-              background: canSend ? 'var(--accent-teal)' : 'rgba(255,255,255,0.05)',
-              border: '1px solid ' + (canSend ? 'transparent' : 'var(--border)'),
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: canSend ? '#000' : 'var(--text-muted)',
-              flexShrink: 0, transition: 'all 0.15s',
-            }}
-            onMouseEnter={e => { if (canSend) e.currentTarget.style.opacity = '0.85' }}
-            onMouseLeave={e => { e.currentTarget.style.opacity = '1' }}
-          >
-            <IconSend size={16} strokeWidth={2.2} />
-          </button>
-        </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
+              <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#ff4d4d', flexShrink: 0, animation: 'pulse 1s ease-in-out infinite' }} />
+              <span style={{ fontSize: '13px', color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums' }}>{formatTimer(elapsedMs)}</span>
+              {recording.kind === 'video' && (
+                <video ref={videoPreviewRef} autoPlay muted playsInline style={{ width: '28px', height: '28px', borderRadius: '50%', objectFit: 'cover', marginLeft: '4px' }} />
+              )}
+            </div>
+
+            <RoundIconButton onClick={handleSendRecording} title="Отправить" accent>
+              <IconSend size={16} strokeWidth={2.2} color="#000" />
+            </RoundIconButton>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', alignItems: 'flex-end', padding: '6px 8px', gap: '4px' }}>
+            <RoundIconButton onClick={() => fileInputRef.current?.click()} title="Прикрепить файл">
+              <IconPaperclip size={18} strokeWidth={1.8} />
+            </RoundIconButton>
+
+            <textarea
+              ref={textareaRef}
+              value={value}
+              onChange={handleInput}
+              onKeyDown={handleKeyDown}
+              placeholder={placeholder}
+              rows={1}
+              style={{ flex: 1, background: 'none', border: 'none', outline: 'none', color: 'var(--text-primary)', fontSize: '14px', lineHeight: '1.5', overflowY: 'hidden', minHeight: '22px', maxHeight: '120px', padding: '8px 4px' }}
+            />
+
+            <RoundIconButton onClick={() => setShowEmoji(v => !v)} title="Эмодзи">
+              <IconMoodSmile size={18} strokeWidth={1.8} />
+            </RoundIconButton>
+
+            {canSend ? (
+              <RoundIconButton onClick={handleSend} title="Отправить" accent>
+                <IconSend size={16} strokeWidth={2.2} color="#000" />
+              </RoundIconButton>
+            ) : (
+              <>
+                <RoundIconButton onClick={() => handleStartRecording('video')} title="Видеосообщение">
+                  <IconVideo size={18} strokeWidth={1.8} />
+                </RoundIconButton>
+                <RoundIconButton onClick={() => handleStartRecording('voice')} title="Голосовое сообщение">
+                  <IconMicrophone size={18} strokeWidth={1.8} />
+                </RoundIconButton>
+              </>
+            )}
+          </div>
+        )}
       </div>
 
       {(uploadError || uploading) && (
         <div style={{ fontSize: '11px', color: uploadError ? '#ff4d4d' : 'var(--text-muted)', padding: '4px 2px 0', textAlign: 'right' }}>
-          {uploadError || 'Загрузка файла...'}
+          {uploadError || 'Загрузка...'}
         </div>
       )}
+
+      <style>{'@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }'}</style>
     </div>
+  )
+}
+
+function RoundIconButton({ onClick, title, children, accent }) {
+  return (
+    <button
+      onClick={onClick}
+      title={title}
+      style={{
+        width: '34px', height: '34px', borderRadius: '50%', flexShrink: 0,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        background: accent ? 'var(--accent-teal)' : 'transparent',
+        color: accent ? '#000' : 'var(--text-muted)',
+        transition: 'all 0.12s',
+      }}
+      onMouseEnter={e => { if (!accent) { e.currentTarget.style.background = 'rgba(255,255,255,0.07)'; e.currentTarget.style.color = 'var(--text-primary)' } else { e.currentTarget.style.opacity = '0.85' } }}
+      onMouseLeave={e => { if (!accent) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-muted)' } else { e.currentTarget.style.opacity = '1' } }}
+    >
+      {children}
+    </button>
   )
 }

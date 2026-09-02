@@ -1,6 +1,122 @@
-import { useState, useEffect } from 'react'
-import { IconDownload, IconLoader2 } from '@tabler/icons-react'
+import { useState, useEffect, useRef } from 'react'
+import { IconDownload, IconLoader2, IconPlayerPlay, IconPlayerPause } from '@tabler/icons-react'
 import { resolveMediaUrl } from '../../lib/matrix'
+
+function formatDuration(totalSeconds) {
+  const m = Math.floor(totalSeconds / 60)
+  const s = totalSeconds % 60
+  return `${m}:${s.toString().padStart(2, '0')}`
+}
+
+function useResolvedMedia(mxcUrl) {
+  const [blobUrl, setBlobUrl] = useState(null)
+  useEffect(() => {
+    let cancelled = false
+    let url = null
+    resolveMediaUrl(mxcUrl).then(resolved => {
+      if (cancelled) { URL.revokeObjectURL(resolved); return }
+      url = resolved
+      setBlobUrl(resolved)
+    }).catch(() => {})
+    return () => {
+      cancelled = true
+      if (url) URL.revokeObjectURL(url)
+    }
+  }, [mxcUrl])
+  return blobUrl
+}
+
+function VoicePlayer({ mxcUrl, durationMs }) {
+  const blobUrl = useResolvedMedia(mxcUrl)
+  const [playing, setPlaying] = useState(false)
+  const [progress, setProgress] = useState(0)
+  const audioRef = useRef(null)
+
+  const toggle = () => {
+    if (!audioRef.current) return
+    if (playing) audioRef.current.pause()
+    else audioRef.current.play()
+  }
+
+  const totalSeconds = Math.round(durationMs / 1000)
+  const displaySeconds = progress > 0 ? Math.round(progress * totalSeconds) : totalSeconds
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: '200px' }}>
+      <button
+        onClick={toggle}
+        disabled={!blobUrl}
+        style={{ width: '34px', height: '34px', borderRadius: '50%', background: 'var(--accent-teal)', color: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+      >
+        {!blobUrl ? <IconLoader2 size={15} className="spin" /> : playing ? <IconPlayerPause size={15} /> : <IconPlayerPlay size={15} />}
+      </button>
+      <div style={{ flex: 1 }}>
+        <div style={{ height: '3px', background: 'rgba(255,255,255,0.15)', borderRadius: '2px', overflow: 'hidden' }}>
+          <div style={{ height: '100%', width: `${progress * 100}%`, background: 'var(--accent-teal)' }} />
+        </div>
+        <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>
+          {formatDuration(displaySeconds)}
+        </div>
+      </div>
+      {blobUrl && (
+        <audio
+          ref={audioRef}
+          src={blobUrl}
+          onPlay={() => setPlaying(true)}
+          onPause={() => setPlaying(false)}
+          onEnded={() => { setPlaying(false); setProgress(0) }}
+          onTimeUpdate={e => setProgress(e.target.duration ? e.target.currentTime / e.target.duration : 0)}
+          style={{ display: 'none' }}
+        />
+      )}
+    </div>
+  )
+}
+
+function RoundVideoPlayer({ mxcUrl, durationMs }) {
+  const blobUrl = useResolvedMedia(mxcUrl)
+  const [playing, setPlaying] = useState(false)
+  const videoRef = useRef(null)
+
+  const toggle = () => {
+    if (!videoRef.current) return
+    if (playing) videoRef.current.pause()
+    else videoRef.current.play()
+  }
+
+  return (
+    <div
+      onClick={toggle}
+      style={{ position: 'relative', width: '200px', height: '200px', borderRadius: '50%', overflow: 'hidden', background: 'var(--bg-primary)', cursor: 'pointer' }}
+    >
+      {!blobUrl ? (
+        <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
+          <IconLoader2 size={24} className="spin" />
+        </div>
+      ) : (
+        <>
+          <video
+            ref={videoRef}
+            src={blobUrl}
+            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+            onPlay={() => setPlaying(true)}
+            onPause={() => setPlaying(false)}
+            onEnded={() => setPlaying(false)}
+            playsInline
+          />
+          {!playing && (
+            <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.25)' }}>
+              <IconPlayerPlay size={36} color="#fff" />
+            </div>
+          )}
+          <div style={{ position: 'absolute', bottom: '10px', left: '50%', transform: 'translateX(-50%)', background: 'rgba(0,0,0,0.5)', color: '#fff', fontSize: '11px', padding: '2px 8px', borderRadius: '10px' }}>
+            {formatDuration(Math.round(durationMs / 1000))}
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
 
 const EXT_COLOR = {
   pdf:  '#ff5252',
@@ -15,21 +131,7 @@ const EXT_COLOR = {
 }
 
 function MediaImage({ mxcUrl, name }) {
-  const [blobUrl, setBlobUrl] = useState(null)
-
-  useEffect(() => {
-    let cancelled = false
-    let url = null
-    resolveMediaUrl(mxcUrl).then(resolved => {
-      if (cancelled) { URL.revokeObjectURL(resolved); return }
-      url = resolved
-      setBlobUrl(resolved)
-    }).catch(() => {})
-    return () => {
-      cancelled = true
-      if (url) URL.revokeObjectURL(url)
-    }
-  }, [mxcUrl])
+  const blobUrl = useResolvedMedia(mxcUrl)
 
   if (!blobUrl) {
     return (
@@ -112,7 +214,7 @@ export default function MessageBubble({ message }) {
     )
   }
 
-  const { isOwn, sender, avatar, time, text, file, image, reactions, readBy } = message
+  const { isOwn, sender, avatar, time, text, file, image, voice, roundVideo, reactions, readBy } = message
 
   return (
     <div style={{
@@ -174,6 +276,18 @@ export default function MessageBubble({ message }) {
           {image && (
             <div style={{ paddingTop: text ? '8px' : '0' }}>
               <MediaImage mxcUrl={image.mxcUrl} name={image.name} />
+            </div>
+          )}
+
+          {voice && (
+            <div style={{ paddingTop: text ? '8px' : '0' }}>
+              <VoicePlayer mxcUrl={voice.mxcUrl} durationMs={voice.durationMs} />
+            </div>
+          )}
+
+          {roundVideo && (
+            <div style={{ paddingTop: text ? '8px' : '0' }}>
+              <RoundVideoPlayer mxcUrl={roundVideo.mxcUrl} durationMs={roundVideo.durationMs} />
             </div>
           )}
 
