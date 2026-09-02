@@ -11,8 +11,13 @@ function formatFileSize(bytes) {
 
 // sendReply's plain-text body carries a legacy Matrix fallback quote
 // ("> <@sender> snippet\n\n<actual reply>") for clients without rich-reply
-// support. Strip it so the bubble shows only the actual reply text — our
+// support. Strip it so the bubble — and, for a reply-to-a-reply chain, the
+// quoted-preview snippet of the original — shows only the actual text; our
 // own quoted-preview block (from base.replyTo) already renders the quote.
+// Known limitation: the fallback format carries no explicit boundary
+// marker, so this splits on the first "\n\n". If the embedded quoted
+// snippet itself contains a blank line within its first ~200 chars, the
+// split point will land there instead of the real one.
 function stripReplyFallback(body) {
   const separatorIndex = body.indexOf('\n\n')
   return separatorIndex === -1 ? body : body.slice(separatorIndex + 2)
@@ -79,9 +84,15 @@ function extractMessages(client, room) {
       if (original && original.getType() === 'm.room.message' && !original.isRedacted()) {
         const originalSenderId = original.getSender()
         const originalMember = room.getMember(originalSenderId)
+        // If the original message is itself a reply, its own body on the
+        // wire still carries sendReply's fallback quote prefix — strip it
+        // before truncating, or a reply-to-a-reply chain would show that
+        // raw fallback text in the quoted-preview snippet.
+        const originalBody = original.getContent().body || ''
+        const cleanOriginalBody = original.replyEventId ? stripReplyFallback(originalBody) : originalBody
         base.replyTo = {
           sender: originalMember?.name || originalSenderId.replace('@', '').split(':')[0],
-          snippet: (original.getContent().body || '').slice(0, 120),
+          snippet: cleanOriginalBody.slice(0, 120),
         }
       } else {
         base.replyTo = { sender: null, snippet: 'Исходное сообщение недоступно' }
