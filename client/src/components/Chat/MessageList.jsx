@@ -140,8 +140,11 @@ function extractMessages(client, room) {
 export default function MessageList({ client, room, onEdit, onReply }) {
   const [messages, setMessages] = useState(() => extractMessages(client, room))
   const bottomRef = useRef(null)
+  const containerRef = useRef(null)
+  const isNearBottomRef = useRef(true)
 
   useEffect(() => {
+    isNearBottomRef.current = true
     setMessages(extractMessages(client, room))
   }, [client, room])
 
@@ -179,7 +182,9 @@ export default function MessageList({ client, room, onEdit, onReply }) {
   }, [client, room])
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView()
+    if (isNearBottomRef.current) {
+      bottomRef.current?.scrollIntoView()
+    }
   }, [messages])
 
   useEffect(() => {
@@ -193,6 +198,12 @@ export default function MessageList({ client, room, onEdit, onReply }) {
     client.sendReadReceipt(lastEvent).catch(err => console.error('Read receipt failed:', err))
   }, [client, room, messages])
 
+  const handleScroll = () => {
+    const container = containerRef.current
+    if (!container) return
+    isNearBottomRef.current = container.scrollHeight - container.scrollTop - container.clientHeight < 120
+  }
+
   if (messages.length === 0) {
     return (
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -202,7 +213,11 @@ export default function MessageList({ client, room, onEdit, onReply }) {
   }
 
   return (
-    <div style={{ flex: 1, overflowY: 'auto', padding: '8px 0 4px', display: 'flex', flexDirection: 'column', gap: '1px' }}>
+    <div
+      ref={containerRef}
+      onScroll={handleScroll}
+      style={{ flex: 1, overflowY: 'auto', padding: '8px 0 4px', display: 'flex', flexDirection: 'column', gap: '1px' }}
+    >
       {messages.map(msg => (
         <MessageBubble key={msg.id} message={msg} roomId={room.roomId} onEdit={onEdit} onReply={onReply} />
       ))}
