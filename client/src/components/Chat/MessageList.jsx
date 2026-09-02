@@ -182,6 +182,17 @@ export default function MessageList({ client, room, onEdit, onReply }) {
     bottomRef.current?.scrollIntoView()
   }, [messages])
 
+  useEffect(() => {
+    // The unread badge (Sidebar's room.getUnreadNotificationCount()) is
+    // purely receipt-driven server-side — nothing clears it unless the
+    // client explicitly acks the latest event. Fires on room open and every
+    // time the timeline advances while this room stays open.
+    const events = room.getLiveTimeline().getEvents()
+    const lastEvent = events[events.length - 1]
+    if (!lastEvent) return
+    client.sendReadReceipt(lastEvent).catch(err => console.error('Read receipt failed:', err))
+  }, [client, room, messages])
+
   if (messages.length === 0) {
     return (
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
