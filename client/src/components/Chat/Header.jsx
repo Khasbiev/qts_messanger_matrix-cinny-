@@ -10,6 +10,14 @@ const NAV_ICON = {
   expand: IconLayoutSidebarLeftExpand,
 }
 
+function pluralizePeople(count) {
+  const mod10 = count % 10
+  const mod100 = count % 100
+  if (mod10 === 1 && mod100 !== 11) return 'человек'
+  if (mod10 >= 2 && mod10 <= 4 && !(mod100 >= 12 && mod100 <= 14)) return 'человека'
+  return 'человек'
+}
+
 export default function Header({ client, room, navMode, onNav }) {
   const memberCount = room.getJoinedMemberCount()
   const isDM = isDirectRoom(client, room.roomId)
@@ -37,7 +45,7 @@ export default function Header({ client, room, navMode, onNav }) {
   }, [client, room])
 
   const subtitle = typingNames.length > 0
-    ? (typingNames.length === 1 ? 'печатает…' : `${typingNames.length} человек печатают…`)
+    ? (typingNames.length === 1 ? 'печатает…' : `${typingNames.length} ${pluralizePeople(typingNames.length)} печатают…`)
     : (isDM ? 'в сети' : `${memberCount} участник${memberCount === 1 ? '' : memberCount < 5 ? 'а' : 'ов'}`)
 
   return (
