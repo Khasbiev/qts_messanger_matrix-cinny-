@@ -120,6 +120,7 @@ function extractMessages(client, room) {
   }
 
   const result = order.map(id => byId.get(id))
+  const others = room.getJoinedMembers().filter(m => m.userId !== me)
 
   for (const msg of result) {
     const emojiMap = reactionsByTarget.get(msg.id)
@@ -132,6 +133,9 @@ function extractMessages(client, room) {
     if (editedBody != null && msg.text != null) {
       msg.text = editedBody
       msg.edited = true
+    }
+    if (msg.isOwn) {
+      msg.readBy = others.filter(m => room.hasUserReadEvent(m.userId, msg.id)).length
     }
   }
 
@@ -153,6 +157,10 @@ export default function MessageList({ client, room, onEdit, onReply }) {
   // instead of applying a stale room's result to the now-current room.
   const roomRef = useRef(room)
   roomRef.current = room
+  // Tracks the last event ID we've already sent a read receipt for, per
+  // room, so the effect below doesn't resend once a room's receipt is
+  // already up to date.
+  const lastSentReceiptRef = useRef({ roomId: null, eventId: null })
 
   useEffect(() => {
     isNearBottomRef.current = true
@@ -193,15 +201,24 @@ export default function MessageList({ client, room, onEdit, onReply }) {
       setReachedStart(false)
       setMessages(extractMessages(client, room))
     }
+    // A read receipt from another member doesn't change the timeline itself,
+    // only whether our own sent messages now count as "read" — recompute so
+    // the ✓✓ checkmark updates live.
+    const onReceipt = (event, eventRoom) => {
+      if (eventRoom?.roomId !== room.roomId) return
+      setMessages(extractMessages(client, room))
+    }
     client.on(RoomEvent.Timeline, recomputeOnRelevantEvent)
     client.on(RoomEvent.LocalEchoUpdated, recomputeOnRelevantEvent)
     client.on(RoomEvent.Redaction, onRedaction)
     client.on(RoomEvent.TimelineReset, onTimelineReset)
+    client.on(RoomEvent.Receipt, onReceipt)
     return () => {
       client.off(RoomEvent.Timeline, recomputeOnRelevantEvent)
       client.off(RoomEvent.LocalEchoUpdated, recomputeOnRelevantEvent)
       client.off(RoomEvent.Redaction, onRedaction)
       client.off(RoomEvent.TimelineReset, onTimelineReset)
+      client.off(RoomEvent.Receipt, onReceipt)
     }
   }, [client, room])
 
@@ -216,10 +233,37 @@ export default function MessageList({ client, room, onEdit, onReply }) {
     // purely receipt-driven server-side — nothing clears it unless the
     // client explicitly acks the latest event. Fires on room open and every
     // time the timeline advances while this room stays open.
+    //
+    // Walk backward to the last event the server has actually confirmed
+    // (status === null) rather than always using the literal last event —
+    // a pending local echo (e.g. a message that was just sent but hasn't
+    // round-tripped yet) has no real event ID server-side, and sending a
+    // receipt for one gets rejected with 400. The next recompute (once the
+    // echo resolves) will pick it up.
+    //
+    // matrix-js-sdk's sendReceipt() unconditionally applies a local-echo
+    // receipt (room.addLocalEchoReceipt -> addReceipt) and unconditionally
+    // emits RoomEvent.Receipt for it, even when the receipt doesn't change.
+    // Since this file also listens for RoomEvent.Receipt to recompute
+    // `messages` (for the ✓✓ readBy count) and this effect depends on
+    // `messages`, sending the same receipt twice would re-trigger this
+    // effect via that local echo and loop forever. Guard by skipping when
+    // we've already sent a receipt for this exact event in this room.
     const events = room.getLiveTimeline().getEvents()
-    const lastEvent = events[events.length - 1]
-    if (!lastEvent) return
-    client.sendReadReceipt(lastEvent).catch(err => console.error('Read receipt failed:', err))
+    let lastConfirmedEvent = null
+    for (let i = events.length - 1; i >= 0; i--) {
+      if (events[i].status == null) {
+        lastConfirmedEvent = events[i]
+        break
+      }
+    }
+    if (!lastConfirmedEvent) return
+    const lastConfirmedEventId = lastConfirmedEvent.getId()
+    const alreadySent = lastSentReceiptRef.current.roomId === room.roomId
+      && lastSentReceiptRef.current.eventId === lastConfirmedEventId
+    if (alreadySent) return
+    lastSentReceiptRef.current = { roomId: room.roomId, eventId: lastConfirmedEventId }
+    client.sendReadReceipt(lastConfirmedEvent).catch(err => console.error('Read receipt failed:', err))
   }, [client, room, messages])
 
   const loadMoreHistory = async () => {
