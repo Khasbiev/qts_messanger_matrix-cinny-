@@ -34,6 +34,7 @@ export default function Chat({ client, room, navMode, onNav }) {
       <Header client={client} room={room} navMode={navMode} onNav={onNav} />
       <MessageList client={client} room={room} onEdit={handleEdit} onReply={handleReply} />
       <InputArea
+        client={client}
         room={room}
         editingMessage={editingMessage}
         onCancelEdit={() => setEditingMessage(null)}

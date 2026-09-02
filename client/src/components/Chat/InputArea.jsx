@@ -14,7 +14,7 @@ function formatTimer(ms) {
   return `${m}:${s.toString().padStart(2, '0')}`
 }
 
-export default function InputArea({ room, editingMessage, onCancelEdit, replyingTo, onCancelReply }) {
+export default function InputArea({ client, room, editingMessage, onCancelEdit, replyingTo, onCancelReply }) {
   const [value, setValue] = useState('')
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState('')
@@ -24,6 +24,8 @@ export default function InputArea({ room, editingMessage, onCancelEdit, replying
   const textareaRef = useRef(null)
   const fileInputRef = useRef(null)
   const videoPreviewRef = useRef(null)
+  const isTypingRef = useRef(false)
+  const typingTimeoutRef = useRef(null)
 
   const placeholder = `Написать в ${room.name}...`
   const canSend = value.trim().length > 0
@@ -52,6 +54,30 @@ export default function InputArea({ room, editingMessage, onCancelEdit, replying
     }
   }, [editingMessage])
 
+  const notifyTyping = () => {
+    if (!isTypingRef.current) {
+      isTypingRef.current = true
+      client.sendTyping(room.roomId, true, 10000).catch(err => console.error('Typing indicator failed:', err))
+    }
+    clearTimeout(typingTimeoutRef.current)
+    typingTimeoutRef.current = setTimeout(() => {
+      isTypingRef.current = false
+      client.sendTyping(room.roomId, false, 10000).catch(err => console.error('Typing indicator failed:', err))
+    }, 4000)
+  }
+
+  const stopTyping = () => {
+    clearTimeout(typingTimeoutRef.current)
+    if (isTypingRef.current) {
+      isTypingRef.current = false
+      client.sendTyping(room.roomId, false, 10000).catch(err => console.error('Typing indicator failed:', err))
+    }
+  }
+
+  useEffect(() => {
+    return () => stopTyping()
+  }, [room])
+
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
@@ -63,6 +89,7 @@ export default function InputArea({ room, editingMessage, onCancelEdit, replying
     const text = value.trim()
     if (!text) return
     setValue('')
+    stopTyping()
     if (textareaRef.current) textareaRef.current.style.height = 'auto'
     try {
       if (editingMessage) {
@@ -83,6 +110,11 @@ export default function InputArea({ room, editingMessage, onCancelEdit, replying
     setValue(e.target.value)
     e.target.style.height = 'auto'
     e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px'
+    if (e.target.value.trim()) {
+      notifyTyping()
+    } else {
+      stopTyping()
+    }
   }
 
   const insertEmoji = (emoji) => {

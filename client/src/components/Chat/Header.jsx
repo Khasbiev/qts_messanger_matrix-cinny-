@@ -1,3 +1,5 @@
+import { useState, useEffect } from 'react'
+import { RoomMemberEvent } from 'matrix-js-sdk'
 import { IconArrowLeft, IconLayoutSidebarLeftCollapse, IconLayoutSidebarLeftExpand } from '@tabler/icons-react'
 import { colorFor } from '../../lib/avatarColor'
 import { isDirectRoom } from '../../lib/matrix'
@@ -14,6 +16,29 @@ export default function Header({ client, room, navMode, onNav }) {
   const color = colorFor(room.roomId)
   const avatarLabel = isDM ? room.name.slice(0, 2).toUpperCase() : `#${room.name.slice(0, 1).toUpperCase()}`
   const NavIcon = NAV_ICON[navMode]
+
+  const [typingNames, setTypingNames] = useState([])
+
+  useEffect(() => {
+    const me = client.getUserId()
+    const computeTyping = () => {
+      const names = room.getJoinedMembers()
+        .filter(m => m.userId !== me && m.typing)
+        .map(m => m.name)
+      setTypingNames(names)
+    }
+    computeTyping()
+    const onTyping = (event, member) => {
+      if (member.roomId !== room.roomId) return
+      computeTyping()
+    }
+    client.on(RoomMemberEvent.Typing, onTyping)
+    return () => client.off(RoomMemberEvent.Typing, onTyping)
+  }, [client, room])
+
+  const subtitle = typingNames.length > 0
+    ? (typingNames.length === 1 ? 'печатает…' : `${typingNames.length} человек печатают…`)
+    : (isDM ? 'в сети' : `${memberCount} участник${memberCount === 1 ? '' : memberCount < 5 ? 'а' : 'ов'}`)
 
   return (
     <div style={{
@@ -59,7 +84,7 @@ export default function Header({ client, room, navMode, onNav }) {
           {room.name}
         </div>
         <div style={{ fontSize: '12px', color: 'var(--accent-teal)', marginTop: '1px' }}>
-          {isDM ? 'в сети' : `${memberCount} участник${memberCount === 1 ? '' : memberCount < 5 ? 'а' : 'ов'}`}
+          {subtitle}
         </div>
       </div>
 
