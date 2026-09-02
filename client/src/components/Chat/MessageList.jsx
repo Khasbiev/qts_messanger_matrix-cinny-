@@ -9,6 +9,15 @@ function formatFileSize(bytes) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} МБ`
 }
 
+// sendReply's plain-text body carries a legacy Matrix fallback quote
+// ("> <@sender> snippet\n\n<actual reply>") for clients without rich-reply
+// support. Strip it so the bubble shows only the actual reply text — our
+// own quoted-preview block (from base.replyTo) already renders the quote.
+function stripReplyFallback(body) {
+  const separatorIndex = body.indexOf('\n\n')
+  return separatorIndex === -1 ? body : body.slice(separatorIndex + 2)
+}
+
 function extractMessages(client, room) {
   const me = client.getUserId()
   const events = room.getLiveTimeline().getEvents()
@@ -49,6 +58,7 @@ function extractMessages(client, room) {
       id: ev.getId(),
       type: 'message',
       sender: name,
+      senderId,
       avatar: name.slice(0, 2).toUpperCase(),
       time: new Date(ev.getTs()).toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit' }),
       isOwn: senderId === me,
@@ -64,6 +74,20 @@ function extractMessages(client, room) {
     const content = ev.getContent()
     if (!content?.body) continue
 
+    if (ev.replyEventId) {
+      const original = room.findEventById(ev.replyEventId)
+      if (original && original.getType() === 'm.room.message' && !original.isRedacted()) {
+        const originalSenderId = original.getSender()
+        const originalMember = room.getMember(originalSenderId)
+        base.replyTo = {
+          sender: originalMember?.name || originalSenderId.replace('@', '').split(':')[0],
+          snippet: (original.getContent().body || '').slice(0, 120),
+        }
+      } else {
+        base.replyTo = { sender: null, snippet: 'Исходное сообщение недоступно' }
+      }
+    }
+
     if (content.msgtype === 'm.image' && content.url) {
       base.image = { mxcUrl: content.url, name: content.body }
     } else if (content.msgtype === 'm.audio' && content.url && content['org.matrix.msc3245.voice']) {
@@ -73,7 +97,7 @@ function extractMessages(client, room) {
     } else if (content.msgtype === 'm.file' && content.url) {
       base.file = { mxcUrl: content.url, name: content.body, ext: (content.body.split('.').pop() || '').toLowerCase(), size: formatFileSize(content.info?.size) }
     } else {
-      base.text = content.body
+      base.text = base.replyTo ? stripReplyFallback(content.body) : content.body
     }
 
     byId.set(base.id, base)
@@ -99,7 +123,7 @@ function extractMessages(client, room) {
   return result
 }
 
-export default function MessageList({ client, room, onEdit }) {
+export default function MessageList({ client, room, onEdit, onReply }) {
   const [messages, setMessages] = useState(() => extractMessages(client, room))
   const bottomRef = useRef(null)
 
@@ -155,7 +179,7 @@ export default function MessageList({ client, room, onEdit }) {
   return (
     <div style={{ flex: 1, overflowY: 'auto', padding: '8px 0 4px', display: 'flex', flexDirection: 'column', gap: '1px' }}>
       {messages.map(msg => (
-        <MessageBubble key={msg.id} message={msg} roomId={room.roomId} onEdit={onEdit} />
+        <MessageBubble key={msg.id} message={msg} roomId={room.roomId} onEdit={onEdit} onReply={onReply} />
       ))}
       <div ref={bottomRef} style={{ height: '4px' }} />
     </div>

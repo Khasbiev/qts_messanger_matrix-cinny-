@@ -195,7 +195,7 @@ function DownloadButton({ mxcUrl, name }) {
   )
 }
 
-export default function MessageBubble({ message, roomId, onEdit }) {
+export default function MessageBubble({ message, roomId, onEdit, onReply }) {
   const [hovered, setHovered] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
 
@@ -283,6 +283,7 @@ export default function MessageBubble({ message, roomId, onEdit }) {
         <MessageActions
           message={message}
           onReact={handleReact}
+          onReply={() => onReply(message)}
           onEdit={isOwn && text != null ? () => onEdit(message) : undefined}
           onDeleteClick={isOwn ? () => setConfirmOpen(true) : undefined}
         />
@@ -330,6 +331,22 @@ export default function MessageBubble({ message, roomId, onEdit }) {
           borderRadius: isOwn ? '12px 12px 3px 12px' : '12px 12px 12px 3px',
           padding: '8px 12px',
         }}>
+          {message.replyTo && (
+            <div style={{
+              borderLeft: '2px solid var(--accent-teal)',
+              paddingLeft: '8px',
+              marginBottom: '6px',
+              opacity: 0.85,
+            }}>
+              <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--accent-teal)' }}>
+                {message.replyTo.sender || 'Сообщение'}
+              </div>
+              <div style={{ fontSize: '12px', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {message.replyTo.snippet}
+              </div>
+            </div>
+          )}
+
           {text && (
             <p style={{ fontSize: '14px', color: 'var(--text-primary)', lineHeight: '1.5', margin: 0 }}>
               {text}

@@ -3,7 +3,7 @@ import {
   IconPaperclip, IconMoodSmile, IconSend,
   IconMicrophone, IconVideo, IconTrash, IconX,
 } from '@tabler/icons-react'
-import { sendMessage, uploadFile, uploadVoiceMessage, uploadVideoNote, editMessage } from '../../lib/matrix'
+import { sendMessage, uploadFile, uploadVoiceMessage, uploadVideoNote, editMessage, sendReply } from '../../lib/matrix'
 import { startRecording } from '../../lib/mediaRecorder'
 import EmojiPicker from './EmojiPicker'
 
@@ -14,7 +14,7 @@ function formatTimer(ms) {
   return `${m}:${s.toString().padStart(2, '0')}`
 }
 
-export default function InputArea({ room, editingMessage, onCancelEdit }) {
+export default function InputArea({ room, editingMessage, onCancelEdit, replyingTo, onCancelReply }) {
   const [value, setValue] = useState('')
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState('')
@@ -63,6 +63,9 @@ export default function InputArea({ room, editingMessage, onCancelEdit }) {
       if (editingMessage) {
         await editMessage(room.roomId, editingMessage.id, text)
         onCancelEdit()
+      } else if (replyingTo) {
+        await sendReply(room.roomId, text, replyingTo)
+        onCancelReply()
       } else {
         await sendMessage(room.roomId, text)
       }
@@ -139,10 +142,21 @@ export default function InputArea({ room, editingMessage, onCancelEdit }) {
 
       {showEmoji && <EmojiPicker onPick={insertEmoji} onClose={() => setShowEmoji(false)} />}
 
-      {editingMessage && (
+      {(editingMessage || replyingTo) && (
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 12px', marginBottom: '4px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '10px', borderLeft: '3px solid var(--accent-teal)' }}>
-          <div style={{ flex: 1, fontSize: '12px', color: 'var(--text-secondary)' }}>Редактирование сообщения</div>
-          <button onClick={onCancelEdit} style={{ color: 'var(--text-muted)', display: 'flex' }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            {editingMessage ? (
+              <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Редактирование сообщения</div>
+            ) : (
+              <>
+                <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--accent-teal)' }}>Ответ {replyingTo.sender}</div>
+                <div style={{ fontSize: '12px', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {replyingTo.text || 'Медиа-сообщение'}
+                </div>
+              </>
+            )}
+          </div>
+          <button onClick={editingMessage ? onCancelEdit : onCancelReply} style={{ color: 'var(--text-muted)', display: 'flex' }}>
             <IconX size={14} />
           </button>
         </div>

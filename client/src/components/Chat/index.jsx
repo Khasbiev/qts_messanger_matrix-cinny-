@@ -5,10 +5,22 @@ import InputArea from './InputArea'
 
 export default function Chat({ client, room, navMode, onNav }) {
   const [editingMessage, setEditingMessage] = useState(null)
+  const [replyingTo, setReplyingTo] = useState(null)
 
   useEffect(() => {
     setEditingMessage(null)
+    setReplyingTo(null)
   }, [room.roomId])
+
+  const handleEdit = (msg) => {
+    setReplyingTo(null)
+    setEditingMessage(msg)
+  }
+
+  const handleReply = (msg) => {
+    setEditingMessage(null)
+    setReplyingTo(msg)
+  }
 
   return (
     <div style={{
@@ -20,8 +32,14 @@ export default function Chat({ client, room, navMode, onNav }) {
       minWidth: 0,
     }}>
       <Header client={client} room={room} navMode={navMode} onNav={onNav} />
-      <MessageList client={client} room={room} onEdit={setEditingMessage} />
-      <InputArea room={room} editingMessage={editingMessage} onCancelEdit={() => setEditingMessage(null)} />
+      <MessageList client={client} room={room} onEdit={handleEdit} onReply={handleReply} />
+      <InputArea
+        room={room}
+        editingMessage={editingMessage}
+        onCancelEdit={() => setEditingMessage(null)}
+        replyingTo={replyingTo}
+        onCancelReply={() => setReplyingTo(null)}
+      />
     </div>
   )
 }

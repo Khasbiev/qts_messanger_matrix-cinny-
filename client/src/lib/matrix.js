@@ -281,3 +281,26 @@ export async function deleteMessage(roomId, eventId) {
   if (!_client) throw new Error('Not connected')
   return _client.redactEvent(roomId, eventId)
 }
+
+function escapeHtml(str) {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+}
+
+export async function sendReply(roomId, text, replyTo) {
+  if (!_client) throw new Error('Not connected')
+  const snippet = (replyTo.text || '').slice(0, 200)
+  const plainFallback = `> <${replyTo.senderId}> ${snippet}\n\n${text}`
+  const htmlFallback = `<mx-reply><blockquote><a href="https://matrix.to/#/${roomId}/${replyTo.id}">In reply to</a> <a href="https://matrix.to/#/${replyTo.senderId}">${escapeHtml(replyTo.sender)}</a><br />${escapeHtml(snippet)}</blockquote></mx-reply>${escapeHtml(text)}`
+
+  return _client.sendMessage(roomId, {
+    msgtype: 'm.text',
+    body: plainFallback,
+    format: 'org.matrix.custom.html',
+    formatted_body: htmlFallback,
+    'm.relates_to': { 'm.in_reply_to': { event_id: replyTo.id } },
+  })
+}
