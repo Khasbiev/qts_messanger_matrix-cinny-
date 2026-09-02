@@ -15,9 +15,11 @@ function formatFileSize(bytes) {
 // quoted-preview snippet of the original — shows only the actual text; our
 // own quoted-preview block (from base.replyTo) already renders the quote.
 // Known limitation: the fallback format carries no explicit boundary
-// marker, so this splits on the first "\n\n". If the embedded quoted
-// snippet itself contains a blank line within its first ~200 chars, the
-// split point will land there instead of the real one.
+// marker, so this splits on the first "\n\n". sendReply now prefixes every
+// line of its own quoted snippet with "> ", so a blank line can no longer
+// occur inside our own fallback block (only after it, as the intended
+// separator) — the only residual risk is a reply from another, non-
+// conformant Matrix client whose fallback quote embeds a blank line.
 function stripReplyFallback(body) {
   const separatorIndex = body.indexOf('\n\n')
   return separatorIndex === -1 ? body : body.slice(separatorIndex + 2)
@@ -35,6 +37,7 @@ function extractMessages(client, room) {
     const type = ev.getType()
 
     if (type === 'm.reaction') {
+      if (ev.isRedacted()) continue
       const rel = ev.getRelation()
       if (!rel || rel.rel_type !== 'm.annotation' || !rel.event_id || !rel.key) continue
       let emojiMap = reactionsByTarget.get(rel.event_id)

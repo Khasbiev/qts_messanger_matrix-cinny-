@@ -40,10 +40,15 @@ export default function InputArea({ room, editingMessage, onCancelEdit, replying
     }
   }, [recording])
 
+  const wasEditingRef = useRef(false)
   useEffect(() => {
     if (editingMessage) {
       setValue(editingMessage.text || '')
+      wasEditingRef.current = true
       textareaRef.current?.focus()
+    } else if (wasEditingRef.current) {
+      setValue('')
+      wasEditingRef.current = false
     }
   }, [editingMessage])
 

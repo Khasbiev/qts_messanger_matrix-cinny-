@@ -33,7 +33,12 @@ export default function MessageActions({ message, onReact, onReply, onEdit, onDe
   }
 
   return (
-    <div style={{ position: 'absolute', top: '-16px', right: '8px', zIndex: 10 }}>
+    <div style={{
+      position: 'absolute',
+      top: '-16px',
+      zIndex: 10,
+      ...(message.isOwn ? { right: '8px' } : { left: '48px' }),
+    }}>
       <div style={{
         display: 'flex', alignItems: 'center', gap: '2px',
         background: 'var(--bg-surface)', border: '1px solid var(--border)',
@@ -55,7 +60,8 @@ export default function MessageActions({ message, onReact, onReply, onEdit, onDe
 
       {quickOpen && (
         <div style={{
-          position: 'absolute', top: '32px', right: '0', zIndex: 11,
+          position: 'absolute', top: '32px', zIndex: 11,
+          ...(message.isOwn ? { right: '0' } : { left: '0' }),
           display: 'flex', alignItems: 'center', gap: '2px',
           background: 'var(--bg-surface)', border: '1px solid var(--border)',
           borderRadius: '8px', padding: '4px', boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
@@ -85,7 +91,7 @@ export default function MessageActions({ message, onReact, onReply, onEdit, onDe
         <EmojiPicker
           onPick={pick}
           onClose={() => setFullPickerOpen(false)}
-          style={{ top: '32px', bottom: 'auto', right: '0' }}
+          style={{ top: '32px', bottom: 'auto', ...(message.isOwn ? { right: '0' } : { left: '0' }) }}
         />
       )}
     </div>

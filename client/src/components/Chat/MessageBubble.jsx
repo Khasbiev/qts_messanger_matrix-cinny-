@@ -433,9 +433,9 @@ export default function MessageBubble({ message, roomId, onEdit, onReply }) {
           marginTop: '3px',
           justifyContent: isOwn ? 'flex-end' : 'flex-start',
         }}>
-          {reactions?.map((r, i) => (
+          {reactions?.map((r) => (
             <span
-              key={i}
+              key={r.emoji}
               onClick={() => handleReact(r.emoji)}
               style={{
                 background: 'var(--bg-card)',

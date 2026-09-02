@@ -293,7 +293,11 @@ function escapeHtml(str) {
 export async function sendReply(roomId, text, replyTo) {
   if (!_client) throw new Error('Not connected')
   const snippet = (replyTo.text || '').slice(0, 200)
-  const plainFallback = `> <${replyTo.senderId}> ${snippet}\n\n${text}`
+  const quoted = snippet
+    .split('\n')
+    .map((line, i) => (i === 0 ? `> <${replyTo.senderId}> ${line}` : `> ${line}`))
+    .join('\n')
+  const plainFallback = `${quoted}\n\n${text}`
   const htmlFallback = `<mx-reply><blockquote><a href="https://matrix.to/#/${roomId}/${replyTo.id}">In reply to</a> <a href="https://matrix.to/#/${replyTo.senderId}">${escapeHtml(replyTo.sender)}</a><br />${escapeHtml(snippet)}</blockquote></mx-reply>${escapeHtml(text)}`
 
   return _client.sendMessage(roomId, {
