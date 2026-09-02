@@ -43,6 +43,10 @@ function categorize(client, rooms) {
   const channels = []
   const dms = []
   for (const room of rooms) {
+    // getRooms() includes rooms we've left (matrix-js-sdk keeps them
+    // around locally until forgotten) — left rooms aren't a chat anymore,
+    // just leftover history, so they don't belong in the room list.
+    if (room.getMyMembership() !== 'join') continue
     if (isDirectRoom(client, room.roomId)) {
       dms.push(room)
     } else {
