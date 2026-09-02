@@ -88,19 +88,15 @@ export default function MessageList({ client, room }) {
   }, [client, room])
 
   useEffect(() => {
-    const onTimeline = (event, eventRoom) => {
-      if (eventRoom?.roomId !== room.roomId) return
-      const type = event.getType()
-      if (type !== 'm.room.message' && type !== 'm.reaction') return
-      setMessages(extractMessages(client, room))
-    }
-    // Local-echoed events (e.g. a just-sent reaction) get a temporary "~"
-    // event id that's swapped for the real one once the server confirms it,
-    // without a new Timeline event firing. Without this listener, a reaction
-    // toggled again before that swap would try to redact the stale local id
-    // and matrix-js-sdk throws (getPendingEvents requires detached pending
-    // event ordering, which this app doesn't use).
-    const onLocalEchoUpdated = (event, eventRoom) => {
+    // Shared by Timeline and LocalEchoUpdated: a new message/reaction event
+    // fires Timeline, but once a local-echoed event (e.g. a just-sent
+    // reaction) gets its temporary "~" id swapped for the real one from the
+    // server, only LocalEchoUpdated fires — no new Timeline event. Without
+    // also recomputing on that, a reaction toggled again before the swap
+    // would try to redact the stale local id and matrix-js-sdk throws
+    // (getPendingEvents requires detached pending event ordering, which
+    // this app doesn't use).
+    const recomputeOnRelevantEvent = (event, eventRoom) => {
       if (eventRoom?.roomId !== room.roomId) return
       const type = event.getType()
       if (type !== 'm.room.message' && type !== 'm.reaction') return
@@ -114,12 +110,12 @@ export default function MessageList({ client, room }) {
       if (eventRoom?.roomId !== room.roomId) return
       setMessages(extractMessages(client, room))
     }
-    client.on(RoomEvent.Timeline, onTimeline)
-    client.on(RoomEvent.LocalEchoUpdated, onLocalEchoUpdated)
+    client.on(RoomEvent.Timeline, recomputeOnRelevantEvent)
+    client.on(RoomEvent.LocalEchoUpdated, recomputeOnRelevantEvent)
     client.on(RoomEvent.Redaction, onRedaction)
     return () => {
-      client.off(RoomEvent.Timeline, onTimeline)
-      client.off(RoomEvent.LocalEchoUpdated, onLocalEchoUpdated)
+      client.off(RoomEvent.Timeline, recomputeOnRelevantEvent)
+      client.off(RoomEvent.LocalEchoUpdated, recomputeOnRelevantEvent)
       client.off(RoomEvent.Redaction, onRedaction)
     }
   }, [client, room])
