@@ -26,6 +26,7 @@ export default function InputArea({ client, room, editingMessage, onCancelEdit, 
   const videoPreviewRef = useRef(null)
   const isTypingRef = useRef(false)
   const typingTimeoutRef = useRef(null)
+  const lastTypingSentAtRef = useRef(0)
 
   const placeholder = `Написать в ${room.name}...`
   const canSend = value.trim().length > 0
@@ -55,9 +56,10 @@ export default function InputArea({ client, room, editingMessage, onCancelEdit, 
   }, [editingMessage])
 
   const notifyTyping = () => {
-    if (!isTypingRef.current) {
+    if (!isTypingRef.current || Date.now() - lastTypingSentAtRef.current > 8000) {
       isTypingRef.current = true
-      client.sendTyping(room.roomId, true, 10000).catch(err => console.error('Typing indicator failed:', err))
+      lastTypingSentAtRef.current = Date.now()
+      client.sendTyping(room.roomId, true, 20000).catch(err => console.error('Typing indicator failed:', err))
     }
     clearTimeout(typingTimeoutRef.current)
     typingTimeoutRef.current = setTimeout(() => {
@@ -68,6 +70,7 @@ export default function InputArea({ client, room, editingMessage, onCancelEdit, 
 
   const stopTyping = () => {
     clearTimeout(typingTimeoutRef.current)
+    lastTypingSentAtRef.current = 0
     if (isTypingRef.current) {
       isTypingRef.current = false
       client.sendTyping(room.roomId, false, 10000).catch(err => console.error('Typing indicator failed:', err))

@@ -263,7 +263,14 @@ export default function MessageList({ client, room, onEdit, onReply }) {
       && lastSentReceiptRef.current.eventId === lastConfirmedEventId
     if (alreadySent) return
     lastSentReceiptRef.current = { roomId: room.roomId, eventId: lastConfirmedEventId }
-    client.sendReadReceipt(lastConfirmedEvent).catch(err => console.error('Read receipt failed:', err))
+    client.sendReadReceipt(lastConfirmedEvent).catch(err => {
+      console.error('Read receipt failed:', err)
+      // Roll back so the next recompute (new message, receipt, etc.) retries
+      // this same event instead of believing forever that it was acked.
+      if (lastSentReceiptRef.current.roomId === room.roomId && lastSentReceiptRef.current.eventId === lastConfirmedEventId) {
+        lastSentReceiptRef.current = { roomId: null, eventId: null }
+      }
+    })
   }, [client, room, messages])
 
   const loadMoreHistory = async () => {
