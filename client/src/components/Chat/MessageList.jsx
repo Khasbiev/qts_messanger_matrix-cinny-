@@ -41,9 +41,6 @@ function extractMessages(client, room) {
       continue
     }
 
-    const content = ev.getContent()
-    if (!content?.body) continue
-
     const senderId = ev.getSender()
     const member = room.getMember(senderId)
     const name = member?.name || senderId.replace('@', '').split(':')[0]
@@ -56,6 +53,16 @@ function extractMessages(client, room) {
       time: new Date(ev.getTs()).toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit' }),
       isOwn: senderId === me,
     }
+
+    if (ev.isRedacted()) {
+      base.deleted = true
+      byId.set(base.id, base)
+      order.push(base.id)
+      continue
+    }
+
+    const content = ev.getContent()
+    if (!content?.body) continue
 
     if (content.msgtype === 'm.image' && content.url) {
       base.image = { mxcUrl: content.url, name: content.body }

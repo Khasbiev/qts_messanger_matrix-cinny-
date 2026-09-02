@@ -276,3 +276,8 @@ export async function editMessage(roomId, eventId, newText) {
     'm.relates_to': { rel_type: 'm.replace', event_id: eventId },
   })
 }
+
+export async function deleteMessage(roomId, eventId) {
+  if (!_client) throw new Error('Not connected')
+  return _client.redactEvent(roomId, eventId)
+}

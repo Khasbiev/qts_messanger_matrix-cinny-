@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
 import { IconDownload, IconLoader2, IconPlayerPlay, IconPlayerPause } from '@tabler/icons-react'
-import { resolveMediaUrl, toggleReaction } from '../../lib/matrix'
+import { resolveMediaUrl, toggleReaction, deleteMessage } from '../../lib/matrix'
 import MessageActions from './MessageActions'
+import Modal from '../Modals/Modal'
 
 function formatDuration(totalSeconds) {
   const m = Math.floor(totalSeconds / 60)
@@ -196,6 +197,7 @@ function DownloadButton({ mxcUrl, name }) {
 
 export default function MessageBubble({ message, roomId, onEdit }) {
   const [hovered, setHovered] = useState(false)
+  const [confirmOpen, setConfirmOpen] = useState(false)
 
   if (message.type === 'date') {
     return (
@@ -217,6 +219,34 @@ export default function MessageBubble({ message, roomId, onEdit }) {
     )
   }
 
+  if (message.deleted) {
+    return (
+      <div style={{
+        display: 'flex',
+        flexDirection: message.isOwn ? 'row-reverse' : 'row',
+        alignItems: 'flex-end',
+        gap: '8px',
+        padding: '2px 16px',
+      }}>
+        {!message.isOwn && (
+          <div style={{ width: '32px', height: '32px', flexShrink: 0 }} />
+        )}
+        <div style={{
+          maxWidth: '65%',
+          background: 'var(--bg-card)',
+          border: '1px dashed var(--border)',
+          borderRadius: '12px',
+          padding: '8px 12px',
+          fontSize: '13px',
+          fontStyle: 'italic',
+          color: 'var(--text-muted)',
+        }}>
+          Сообщение удалено
+        </div>
+      </div>
+    )
+  }
+
   const { isOwn, sender, avatar, time, text, file, image, voice, roundVideo, reactions, readBy } = message
 
   const handleReact = async (emoji) => {
@@ -227,7 +257,17 @@ export default function MessageBubble({ message, roomId, onEdit }) {
     }
   }
 
+  const handleDelete = async () => {
+    setConfirmOpen(false)
+    try {
+      await deleteMessage(roomId, message.id)
+    } catch (err) {
+      console.error('Delete failed:', err)
+    }
+  }
+
   return (
+    <>
     <div
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
@@ -244,6 +284,7 @@ export default function MessageBubble({ message, roomId, onEdit }) {
           message={message}
           onReact={handleReact}
           onEdit={isOwn && text != null ? () => onEdit(message) : undefined}
+          onDeleteClick={isOwn ? () => setConfirmOpen(true) : undefined}
         />
       )}
       {/* Avatar (others only) */}
@@ -415,5 +456,20 @@ export default function MessageBubble({ message, roomId, onEdit }) {
         </div>
       </div>
     </div>
+    {confirmOpen && (
+      <Modal
+        title="Удалить сообщение?"
+        onClose={() => setConfirmOpen(false)}
+        footer={
+          <>
+            <button onClick={() => setConfirmOpen(false)} style={{ padding: '8px 14px', borderRadius: '7px', color: 'var(--text-secondary)', fontSize: '13px' }}>Отмена</button>
+            <button onClick={handleDelete} style={{ padding: '8px 14px', borderRadius: '7px', background: '#ff4d4d', color: '#fff', fontSize: '13px', fontWeight: 600, border: 'none' }}>Удалить</button>
+          </>
+        }
+      >
+        <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Это действие нельзя отменить.</div>
+      </Modal>
+    )}
+    </>
   )
 }
