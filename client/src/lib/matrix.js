@@ -70,14 +70,44 @@ export function startSync(client) {
 function autoJoinInvites(client) {
   for (const room of client.getRooms()) {
     if (room.getMyMembership() === 'invite') {
-      client.joinRoom(room.roomId).catch(err => console.error('Auto-join failed:', err))
+      joinAndRegisterDirect(client, room)
     }
   }
   client.on(RoomEvent.MyMembership, (room, membership) => {
     if (membership === 'invite') {
-      client.joinRoom(room.roomId).catch(err => console.error('Auto-join failed:', err))
+      joinAndRegisterDirect(client, room)
     }
   })
+}
+
+// The inviter's own m.direct account data already lists this room, but
+// isDirectRoom() only ever checks the CURRENT user's own m.direct — so
+// without mirroring it here too, the invited side's sidebar sorts an
+// auto-joined DM under "Каналы" instead of "Личные сообщения". The
+// invite's m.room.member content carries is_direct + who sent it; both
+// disappear once we've joined (the join event has neither), so read them
+// before calling joinRoom.
+async function joinAndRegisterDirect(client, room) {
+  const inviteEvent = room.currentState.getStateEvents('m.room.member', client.getUserId())
+  const isDirect = inviteEvent?.getContent()?.is_direct === true
+  const inviterId = inviteEvent?.getSender()
+
+  try {
+    await client.joinRoom(room.roomId)
+  } catch (err) {
+    console.error('Auto-join failed:', err)
+    return
+  }
+
+  if (!isDirect || !inviterId) return
+  try {
+    const directContent = client.getAccountData('m.direct')?.getContent() || {}
+    const existing = directContent[inviterId] || []
+    if (existing.includes(room.roomId)) return
+    await client.setAccountData('m.direct', { ...directContent, [inviterId]: [...existing, room.roomId] })
+  } catch (err) {
+    console.error('Registering auto-joined DM failed:', err)
+  }
 }
 
 export async function logout() {
@@ -156,9 +186,28 @@ export async function searchUsers(term) {
 export async function createOrGetDirectMessage(userId) {
   if (!_client) throw new Error('Not connected')
   const directContent = _client.getAccountData('m.direct')?.getContent() || {}
-  const existing = directContent[userId]?.[0]
-  if (existing && _client.getRoom(existing)) {
-    return existing
+  const known = directContent[userId] || []
+
+  for (const roomId of known) {
+    const room = _client.getRoom(roomId)
+    if (room && room.getMyMembership() !== 'leave') return roomId
+  }
+
+  // m.direct is a private per-account cache: it's never updated by the
+  // other side inviting us, so if they started this DM first (or we're
+  // racing them), it's empty even though a perfectly good shared room
+  // already exists. Fall back to actual room membership — the one thing
+  // both sides always agree on — before creating a duplicate.
+  const existingRoom = _client.getRooms().find(room => {
+    if (room.getMyMembership() === 'leave') return false
+    const members = room.getMembers().filter(m => m.membership === 'join' || m.membership === 'invite')
+    return members.length === 2 && members.some(m => m.userId === userId)
+  })
+  if (existingRoom) {
+    if (!known.includes(existingRoom.roomId)) {
+      await _client.setAccountData('m.direct', { ...directContent, [userId]: [...known, existingRoom.roomId] })
+    }
+    return existingRoom.roomId
   }
 
   const { room_id } = await _client.createRoom({
@@ -168,8 +217,7 @@ export async function createOrGetDirectMessage(userId) {
     invite: [userId],
   })
 
-  const updated = { ...directContent, [userId]: [...(directContent[userId] || []), room_id] }
-  await _client.setAccountData('m.direct', updated)
+  await _client.setAccountData('m.direct', { ...directContent, [userId]: [...known, room_id] })
 
   return room_id
 }
