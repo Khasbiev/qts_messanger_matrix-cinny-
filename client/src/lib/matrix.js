@@ -266,3 +266,13 @@ export async function toggleReaction(roomId, message, emoji) {
   }
   return sendReaction(roomId, message.id, emoji)
 }
+
+export async function editMessage(roomId, eventId, newText) {
+  if (!_client) throw new Error('Not connected')
+  return _client.sendMessage(roomId, {
+    msgtype: 'm.text',
+    body: `* ${newText}`,
+    'm.new_content': { msgtype: 'm.text', body: newText },
+    'm.relates_to': { rel_type: 'm.replace', event_id: eventId },
+  })
+}

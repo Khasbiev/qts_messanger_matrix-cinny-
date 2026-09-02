@@ -15,6 +15,7 @@ function extractMessages(client, room) {
   const byId = new Map()
   const order = []
   const reactionsByTarget = new Map()
+  const editsByTarget = new Map()
 
   for (const ev of events) {
     const type = ev.getType()
@@ -32,6 +33,13 @@ function extractMessages(client, room) {
     }
 
     if (type !== 'm.room.message') continue
+
+    const rel = ev.getRelation()
+    if (rel?.rel_type === 'm.replace') {
+      const newContent = ev.getContent()['m.new_content']
+      if (newContent?.body != null) editsByTarget.set(rel.event_id, newContent.body)
+      continue
+    }
 
     const content = ev.getContent()
     if (!content?.body) continue
@@ -74,12 +82,17 @@ function extractMessages(client, room) {
         emoji, count: entry.count, reactedByMe: entry.reactedByMe, myEventId: entry.myEventId,
       }))
     }
+    const editedBody = editsByTarget.get(msg.id)
+    if (editedBody != null && msg.text != null) {
+      msg.text = editedBody
+      msg.edited = true
+    }
   }
 
   return result
 }
 
-export default function MessageList({ client, room }) {
+export default function MessageList({ client, room, onEdit }) {
   const [messages, setMessages] = useState(() => extractMessages(client, room))
   const bottomRef = useRef(null)
 
@@ -135,7 +148,7 @@ export default function MessageList({ client, room }) {
   return (
     <div style={{ flex: 1, overflowY: 'auto', padding: '8px 0 4px', display: 'flex', flexDirection: 'column', gap: '1px' }}>
       {messages.map(msg => (
-        <MessageBubble key={msg.id} message={msg} roomId={room.roomId} />
+        <MessageBubble key={msg.id} message={msg} roomId={room.roomId} onEdit={onEdit} />
       ))}
       <div ref={bottomRef} style={{ height: '4px' }} />
     </div>

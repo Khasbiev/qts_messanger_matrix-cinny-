@@ -1,9 +1,9 @@
 import { useState, useRef, useEffect } from 'react'
 import {
   IconPaperclip, IconMoodSmile, IconSend,
-  IconMicrophone, IconVideo, IconTrash,
+  IconMicrophone, IconVideo, IconTrash, IconX,
 } from '@tabler/icons-react'
-import { sendMessage, uploadFile, uploadVoiceMessage, uploadVideoNote } from '../../lib/matrix'
+import { sendMessage, uploadFile, uploadVoiceMessage, uploadVideoNote, editMessage } from '../../lib/matrix'
 import { startRecording } from '../../lib/mediaRecorder'
 import EmojiPicker from './EmojiPicker'
 
@@ -14,7 +14,7 @@ function formatTimer(ms) {
   return `${m}:${s.toString().padStart(2, '0')}`
 }
 
-export default function InputArea({ room }) {
+export default function InputArea({ room, editingMessage, onCancelEdit }) {
   const [value, setValue] = useState('')
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState('')
@@ -40,6 +40,13 @@ export default function InputArea({ room }) {
     }
   }, [recording])
 
+  useEffect(() => {
+    if (editingMessage) {
+      setValue(editingMessage.text || '')
+      textareaRef.current?.focus()
+    }
+  }, [editingMessage])
+
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
@@ -53,7 +60,12 @@ export default function InputArea({ room }) {
     setValue('')
     if (textareaRef.current) textareaRef.current.style.height = 'auto'
     try {
-      await sendMessage(room.roomId, text)
+      if (editingMessage) {
+        await editMessage(room.roomId, editingMessage.id, text)
+        onCancelEdit()
+      } else {
+        await sendMessage(room.roomId, text)
+      }
     } catch (err) {
       console.error('Send failed:', err)
     }
@@ -126,6 +138,15 @@ export default function InputArea({ room }) {
       <input ref={fileInputRef} type="file" style={{ display: 'none' }} onChange={handleFileChange} />
 
       {showEmoji && <EmojiPicker onPick={insertEmoji} onClose={() => setShowEmoji(false)} />}
+
+      {editingMessage && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 12px', marginBottom: '4px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '10px', borderLeft: '3px solid var(--accent-teal)' }}>
+          <div style={{ flex: 1, fontSize: '12px', color: 'var(--text-secondary)' }}>Редактирование сообщения</div>
+          <button onClick={onCancelEdit} style={{ color: 'var(--text-muted)', display: 'flex' }}>
+            <IconX size={14} />
+          </button>
+        </div>
+      )}
 
       <div
         style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '24px', overflow: 'hidden', transition: 'border-color 0.15s' }}

@@ -194,7 +194,7 @@ function DownloadButton({ mxcUrl, name }) {
   )
 }
 
-export default function MessageBubble({ message, roomId }) {
+export default function MessageBubble({ message, roomId, onEdit }) {
   const [hovered, setHovered] = useState(false)
 
   if (message.type === 'date') {
@@ -239,7 +239,13 @@ export default function MessageBubble({ message, roomId }) {
         gap: '8px',
         padding: '2px 16px',
       }}>
-      {hovered && <MessageActions message={message} onReact={handleReact} />}
+      {hovered && (
+        <MessageActions
+          message={message}
+          onReact={handleReact}
+          onEdit={isOwn && text != null ? () => onEdit(message) : undefined}
+        />
+      )}
       {/* Avatar (others only) */}
       {!isOwn && (
         <div style={{
@@ -389,6 +395,10 @@ export default function MessageBubble({ message, roomId }) {
               <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{r.count}</span>
             </span>
           ))}
+
+          {message.edited && (
+            <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontStyle: 'italic' }}>изменено</span>
+          )}
 
           <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{time}</span>
 
