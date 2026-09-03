@@ -58,9 +58,10 @@ export default function Header({ client, room, navMode, onNav }) {
       return
     }
     const otherUserId = other.userId
+    let cancelled = false
 
     client.getPresence(otherUserId)
-      .then(status => setPresence(status.presence))
+      .then(status => { if (!cancelled) setPresence(status.presence) })
       .catch(err => console.error('Presence fetch failed:', err))
 
     const onPresence = (event, user) => {
@@ -68,7 +69,10 @@ export default function Header({ client, room, navMode, onNav }) {
       setPresence(user.presence)
     }
     client.on(UserEvent.Presence, onPresence)
-    return () => client.off(UserEvent.Presence, onPresence)
+    return () => {
+      cancelled = true
+      client.off(UserEvent.Presence, onPresence)
+    }
   }, [client, room, isDM])
 
   const presenceText = presence === 'online' ? 'в сети' : presence === 'unavailable' ? 'отошёл' : 'не в сети'
