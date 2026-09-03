@@ -196,7 +196,7 @@ function DownloadButton({ mxcUrl, name }) {
   )
 }
 
-export default function MessageBubble({ message, roomId, onEdit, onReply }) {
+export default function MessageBubble({ message, roomId, onEdit, onReply, highlighted }) {
   const [hovered, setHovered] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [forwardOpen, setForwardOpen] = useState(false)
@@ -271,6 +271,7 @@ export default function MessageBubble({ message, roomId, onEdit, onReply }) {
   return (
     <>
     <div
+      data-event-id={message.id}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
@@ -280,6 +281,8 @@ export default function MessageBubble({ message, roomId, onEdit, onReply }) {
         alignItems: 'flex-end',
         gap: '8px',
         padding: '2px 16px',
+        backgroundColor: highlighted ? 'rgba(0, 229, 176, 0.15)' : 'transparent',
+        transition: 'background-color 1.2s ease-out',
       }}>
       {hovered && (
         <MessageActions

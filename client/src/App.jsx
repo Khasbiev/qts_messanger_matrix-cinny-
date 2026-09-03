@@ -10,6 +10,7 @@ export default function App() {
   const [client, setClient] = useState(null)
   const [loading, setLoading] = useState(true)
   const [activeRoom, setActiveRoom] = useState(null)
+  const [jumpToEventId, setJumpToEventId] = useState(null)
   const [listVisible, setListVisible] = useState(true)
   const [isNarrow, setIsNarrow] = useState(() => window.innerWidth < NARROW_BREAKPOINT)
 
@@ -43,13 +44,15 @@ export default function App() {
     setActiveRoom(null)
   }
 
-  const handleRoomSelect = (room) => {
+  const handleRoomSelect = (room, opts) => {
     setActiveRoom(room)
+    setJumpToEventId(opts?.jumpToEventId || null)
     if (isNarrow) setListVisible(false)
   }
 
   const handleLeaveRoom = () => {
     setActiveRoom(null)
+    setJumpToEventId(null)
   }
 
   if (loading) {
@@ -88,7 +91,15 @@ export default function App() {
         />
       )}
       {showChatPane && (
-        <Chat key={activeRoom.roomId} client={client} room={activeRoom} navMode={navMode} onNav={handleNav} onLeave={handleLeaveRoom} />
+        <Chat
+          key={activeRoom.roomId + (jumpToEventId ? `:${jumpToEventId}` : '')}
+          client={client}
+          room={activeRoom}
+          navMode={navMode}
+          onNav={handleNav}
+          onLeave={handleLeaveRoom}
+          jumpToEventId={jumpToEventId}
+        />
       )}
       {showNoRoomPlaceholder && <NoRoom />}
     </div>

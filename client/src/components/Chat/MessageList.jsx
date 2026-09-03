@@ -161,7 +161,7 @@ function extractMessages(client, room) {
   return result
 }
 
-export default function MessageList({ client, room, onEdit, onReply }) {
+export default function MessageList({ client, room, onEdit, onReply, jumpToEventId }) {
   const [messages, setMessages] = useState(() => extractMessages(client, room))
   const bottomRef = useRef(null)
   const containerRef = useRef(null)
@@ -180,6 +180,7 @@ export default function MessageList({ client, room, onEdit, onReply }) {
   // room, so the effect below doesn't resend once a room's receipt is
   // already up to date.
   const lastSentReceiptRef = useRef({ roomId: null, eventId: null })
+  const [highlightedId, setHighlightedId] = useState(null)
 
   useEffect(() => {
     isNearBottomRef.current = true
@@ -187,6 +188,59 @@ export default function MessageList({ client, room, onEdit, onReply }) {
     setReachedStart(false)
     setMessages(extractMessages(client, room))
   }, [client, room])
+
+  // Jump-to-message, triggered by clicking a message search result.
+  // App.jsx keys this component's Chat parent on `roomId:jumpToEventId`
+  // whenever one is present, so this effect only ever runs once against a
+  // freshly mounted MessageList instance — it never needs to react to
+  // jumpToEventId changing on a component that's already alive. If the
+  // target isn't in the timeline yet, page backward with the same
+  // scrollback() primitive loadMoreHistory (below) already uses, capped
+  // so a target that's never found (very old, unpaginated history)
+  // degrades silently to the normal bottom-of-timeline view instead of
+  // paging forever.
+  useEffect(() => {
+    if (!jumpToEventId) return
+    // Suppress the scroll-to-bottom effect below (keyed on `messages`)
+    // while this effect drives scroll position itself.
+    isNearBottomRef.current = false
+    let cancelled = false
+
+    const scrollToTarget = () => {
+      const el = containerRef.current?.querySelector(`[data-event-id="${jumpToEventId}"]`)
+      if (!el) return false
+      el.scrollIntoView({ block: 'center' })
+      setHighlightedId(jumpToEventId)
+      setTimeout(() => { if (!cancelled) setHighlightedId(null) }, 2000)
+      return true
+    }
+
+    const jump = async () => {
+      await new Promise(resolve => requestAnimationFrame(resolve))
+      if (cancelled) return
+      if (room.findEventById(jumpToEventId) && scrollToTarget()) return
+
+      for (let attempts = 0; attempts < 20 && !cancelled; attempts++) {
+        if (roomRef.current !== room) return
+        const hasMore = room.getLiveTimeline().getPaginationToken(EventTimeline.BACKWARDS) != null
+        if (!hasMore) break
+        try {
+          await client.scrollback(room, 30)
+        } catch (err) {
+          console.error('Jump-to-message pagination failed:', err)
+          break
+        }
+        if (cancelled || roomRef.current !== room) return
+        setMessages(extractMessages(client, room))
+        await new Promise(resolve => requestAnimationFrame(resolve))
+        if (room.findEventById(jumpToEventId) && scrollToTarget()) return
+      }
+      // Cap hit, or the target was never found — fall back silently.
+    }
+
+    jump()
+    return () => { cancelled = true }
+  }, [])
 
   useEffect(() => {
     // Shared by Timeline and LocalEchoUpdated: a new message/reaction event
@@ -366,7 +420,7 @@ export default function MessageList({ client, room, onEdit, onReply }) {
         </div>
       ) : (
         messages.map(msg => (
-          <MessageBubble key={msg.id} message={msg} roomId={room.roomId} onEdit={onEdit} onReply={onReply} />
+          <MessageBubble key={msg.id} message={msg} roomId={room.roomId} onEdit={onEdit} onReply={onReply} highlighted={msg.id === highlightedId} />
         ))
       )}
       <div ref={bottomRef} style={{ height: '4px' }} />

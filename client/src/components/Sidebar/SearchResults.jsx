@@ -102,7 +102,7 @@ export default function SearchResults({ client, query, onRoomSelect }) {
               key={result.id}
               onClick={() => {
                 const room = client.getRoom(result.roomId)
-                if (room) onRoomSelect(room)
+                if (room) onRoomSelect(room, { jumpToEventId: result.id })
               }}
               style={{ padding: '8px 14px', margin: '1px 6px', borderRadius: '8px', cursor: 'pointer' }}
               onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)' }}
