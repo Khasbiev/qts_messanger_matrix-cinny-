@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from 'react'
-import { UserEvent } from 'matrix-js-sdk'
 import { IconCamera, IconLoader2, IconPencil, IconPlus } from '@tabler/icons-react'
 import Modal from './Modal'
 import UserPicker from './UserPicker'
@@ -9,7 +8,7 @@ import {
 } from '../../lib/matrix'
 import { colorFor } from '../../lib/avatarColor'
 
-export default function ChatInfoModal({ client, room, onClose, onLeave }) {
+export default function ChatInfoModal({ client, room, onClose, onLeave, presenceText }) {
   const isDM = isDirectRoom(client, room.roomId)
   const me = client.getUserId()
   const color = colorFor(room.roomId)
@@ -24,23 +23,6 @@ export default function ChatInfoModal({ client, room, onClose, onLeave }) {
   const canEditAvatar = !isDM && room.currentState.maySendStateEvent('m.room.avatar', me)
   const canInvite = !isDM && room.currentState.hasSufficientPowerLevelFor('invite', myPowerLevel)
   const canKick = !isDM && room.currentState.hasSufficientPowerLevelFor('kick', myPowerLevel)
-
-  const [presence, setPresence] = useState(null)
-  useEffect(() => {
-    if (!isDM || !other) return
-    let cancelled = false
-    client.getPresence(other.userId)
-      .then(status => { if (!cancelled) setPresence(status.presence) })
-      .catch(err => console.error('Presence fetch failed:', err))
-    const onPresence = (event, user) => {
-      if (user.userId !== other.userId) return
-      setPresence(user.presence)
-    }
-    client.on(UserEvent.Presence, onPresence)
-    return () => { cancelled = true; client.off(UserEvent.Presence, onPresence) }
-  }, [client, isDM, other?.userId])
-
-  const presenceText = presence === 'online' ? 'в сети' : presence === 'unavailable' ? 'отошёл' : 'не в сети'
 
   const [error, setError] = useState('')
 
@@ -58,22 +40,22 @@ export default function ChatInfoModal({ client, room, onClose, onLeave }) {
     }
   }
 
+  const [avatarMxcUrl, setAvatarMxcUrl] = useState(() => room.getMxcAvatarUrl())
   const [avatarBlobUrl, setAvatarBlobUrl] = useState(null)
   const [uploadingAvatar, setUploadingAvatar] = useState(false)
   const fileInputRef = useRef(null)
 
   useEffect(() => {
-    const mxcUrl = room.getMxcAvatarUrl()
-    if (!mxcUrl) { setAvatarBlobUrl(null); return }
+    if (!avatarMxcUrl) { setAvatarBlobUrl(null); return }
     let cancelled = false
     let url = null
-    resolveMediaUrl(mxcUrl).then(resolved => {
+    resolveMediaUrl(avatarMxcUrl).then(resolved => {
       if (cancelled) { URL.revokeObjectURL(resolved); return }
       url = resolved
       setAvatarBlobUrl(resolved)
     }).catch(() => {})
     return () => { cancelled = true; if (url) URL.revokeObjectURL(url) }
-  }, [room])
+  }, [avatarMxcUrl])
 
   const handleAvatarChange = async (e) => {
     const file = e.target.files?.[0]
@@ -82,7 +64,8 @@ export default function ChatInfoModal({ client, room, onClose, onLeave }) {
     setUploadingAvatar(true)
     setError('')
     try {
-      await updateRoomAvatar(room.roomId, file)
+      const mxcUrl = await updateRoomAvatar(room.roomId, file)
+      setAvatarMxcUrl(mxcUrl)
     } catch (err) {
       setError(err.data?.error || err.message || 'Не удалось обновить аватар')
     } finally {
@@ -128,16 +111,17 @@ export default function ChatInfoModal({ client, room, onClose, onLeave }) {
 
   const [kickTarget, setKickTarget] = useState(null)
   const [kicking, setKicking] = useState(false)
+  const [kickError, setKickError] = useState('')
 
   const handleKick = async () => {
     if (!kickTarget) return
     setKicking(true)
-    setError('')
+    setKickError('')
     try {
       await kickFromRoom(room.roomId, kickTarget.userId)
       setKickTarget(null)
     } catch (err) {
-      setError(err.data?.error || err.message || 'Не удалось убрать участника')
+      setKickError(err.data?.error || err.message || 'Не удалось убрать участника')
     } finally {
       setKicking(false)
     }
@@ -145,7 +129,7 @@ export default function ChatInfoModal({ client, room, onClose, onLeave }) {
 
   return (
     <>
-    <Modal title={isDM ? 'Информация' : 'О канале'} onClose={onClose}>
+    <Modal title={isDM ? 'Информация' : 'О канале'} onClose={() => { if (!kickTarget) onClose() }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
           <div style={{ position: 'relative' }}>
@@ -250,8 +234,8 @@ export default function ChatInfoModal({ client, room, onClose, onLeave }) {
                   <span style={{ fontSize: '13px', color: 'var(--text-primary)', flex: 1 }}>
                     {m.name}{m.userId === me ? ' (вы)' : ''}
                   </span>
-                  {canKick && m.userId !== me && (
-                    <button onClick={() => setKickTarget(m)} style={{ fontSize: '11px', color: '#ff4d4d' }}>Убрать</button>
+                  {canKick && m.userId !== me && m.powerLevel < myPowerLevel && (
+                    <button onClick={() => { setKickError(''); setKickTarget(m) }} style={{ fontSize: '11px', color: '#ff4d4d' }}>Убрать</button>
                   )}
                 </div>
               ))}
@@ -273,10 +257,10 @@ export default function ChatInfoModal({ client, room, onClose, onLeave }) {
     {kickTarget && (
       <Modal
         title="Убрать участника?"
-        onClose={() => setKickTarget(null)}
+        onClose={() => { setKickTarget(null); setKickError('') }}
         footer={
           <>
-            <button onClick={() => setKickTarget(null)} style={{ padding: '8px 14px', borderRadius: '7px', color: 'var(--text-secondary)', fontSize: '13px' }}>Отмена</button>
+            <button onClick={() => { setKickTarget(null); setKickError('') }} style={{ padding: '8px 14px', borderRadius: '7px', color: 'var(--text-secondary)', fontSize: '13px' }}>Отмена</button>
             <button onClick={handleKick} disabled={kicking} style={{ padding: '8px 14px', borderRadius: '7px', background: '#ff4d4d', color: '#fff', fontSize: '13px', fontWeight: 600, border: 'none' }}>
               {kicking ? '...' : 'Убрать'}
             </button>
@@ -286,6 +270,7 @@ export default function ChatInfoModal({ client, room, onClose, onLeave }) {
         <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
           Убрать {kickTarget.name} из канала?
         </div>
+        {kickError && <div style={{ fontSize: '12px', color: '#ff4d4d', marginTop: '10px' }}>{kickError}</div>}
       </Modal>
     )}
     </>

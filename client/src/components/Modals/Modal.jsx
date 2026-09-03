@@ -15,7 +15,7 @@ export default function Modal({ title, onClose, children, footer }) {
     >
       <div
         onClick={e => e.stopPropagation()}
-        style={{ width: '380px', maxWidth: '90vw', background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: '12px', padding: '20px' }}
+        style={{ width: '380px', maxWidth: '90vw', maxHeight: '90vh', overflowY: 'auto', background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: '12px', padding: '20px' }}
       >
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
           <span style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)' }}>{title}</span>

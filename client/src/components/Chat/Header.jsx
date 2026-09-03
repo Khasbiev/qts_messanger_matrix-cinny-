@@ -139,7 +139,7 @@ export default function Header({ client, room, navMode, onNav, onLeave }) {
       </div>
 
       {infoOpen && (
-        <ChatInfoModal client={client} room={room} onClose={() => setInfoOpen(false)} onLeave={onLeave} />
+        <ChatInfoModal client={client} room={room} onClose={() => setInfoOpen(false)} onLeave={onLeave} presenceText={presenceText} />
       )}
     </div>
   )
