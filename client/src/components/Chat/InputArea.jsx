@@ -55,6 +55,39 @@ export default function InputArea({ client, room, editingMessage, onCancelEdit, 
     }
   }, [editingMessage])
 
+  const draftTimeoutRef = useRef(null)
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(`qts_draft_${room.roomId}`)
+      if (saved) setValue(saved)
+    } catch (err) {
+      console.error('Draft load failed:', err)
+    }
+  }, [room])
+
+  const saveDraft = (text) => {
+    clearTimeout(draftTimeoutRef.current)
+    draftTimeoutRef.current = setTimeout(() => {
+      try {
+        const key = `qts_draft_${room.roomId}`
+        if (text.trim()) localStorage.setItem(key, text)
+        else localStorage.removeItem(key)
+      } catch (err) {
+        console.error('Draft save failed:', err)
+      }
+    }, 400)
+  }
+
+  const clearDraft = () => {
+    clearTimeout(draftTimeoutRef.current)
+    try {
+      localStorage.removeItem(`qts_draft_${room.roomId}`)
+    } catch (err) {
+      console.error('Draft clear failed:', err)
+    }
+  }
+
   const notifyTyping = () => {
     if (!isTypingRef.current || Date.now() - lastTypingSentAtRef.current > 8000) {
       isTypingRef.current = true
@@ -91,8 +124,10 @@ export default function InputArea({ client, room, editingMessage, onCancelEdit, 
   const handleSend = async () => {
     const text = value.trim()
     if (!text) return
+    const isPlainSend = !editingMessage && !replyingTo
     setValue('')
     stopTyping()
+    if (isPlainSend) clearDraft()
     if (textareaRef.current) textareaRef.current.style.height = 'auto'
     try {
       if (editingMessage) {
@@ -117,6 +152,9 @@ export default function InputArea({ client, room, editingMessage, onCancelEdit, 
       notifyTyping()
     } else {
       stopTyping()
+    }
+    if (!editingMessage && !replyingTo) {
+      saveDraft(e.target.value)
     }
   }
 
