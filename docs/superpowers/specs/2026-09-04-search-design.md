@@ -133,9 +133,12 @@ the query, called after a click-through).
   Чаты section is unaffected since it never touched the network. Each
   result row: sender name, message snippet (truncated, plain — no
   highlighting), room name, relative timestamp (reuse `formatChatTime`,
-  the module-scoped helper already defined in `Sidebar/index.jsx` for the
-  chat list's own timestamps — export it from that file so
-  `SearchResults.jsx` can import it, rather than duplicating the logic).
+  the timestamp-formatting logic already defined in `Sidebar/index.jsx`
+  for the chat list's own timestamps. Since `SearchResults.jsx` is
+  imported *by* `Sidebar/index.jsx`, importing back from it would be
+  circular — move `formatChatTime` into a new shared module,
+  `lib/formatTime.js`, and have both files import it from there, rather
+  than duplicating the logic).
 - Clicking a Чаты row: `onRoomSelect(room)`, then `onClose()`.
 - Clicking a Сообщения row: `onRoomSelect(room, { jumpToEventId: result.id })`,
   then `onClose()`.
