@@ -181,6 +181,16 @@ export default function MessageList({ client, room, onEdit, onReply, jumpToEvent
   // already up to date.
   const lastSentReceiptRef = useRef({ roomId: null, eventId: null })
   const [highlightedId, setHighlightedId] = useState(null)
+  // Set synchronously (a ref, not state) for the duration of the jump
+  // effect below. A state update from one effect isn't visible to a
+  // sibling effect's closure within the same commit — only after a
+  // subsequent render — so on the initial mount the auto-fill effect
+  // (below) would still see a stale loadingHistory=false and could slip
+  // in a competing loadMoreHistory() call regardless of when
+  // setLoadingHistory(true) is called. A ref sidesteps that entirely:
+  // loadMoreHistory() checks it directly and sees the true value the
+  // instant it's set, with no render in between.
+  const jumpInProgressRef = useRef(false)
 
   useEffect(() => {
     isNearBottomRef.current = true
@@ -216,34 +226,41 @@ export default function MessageList({ client, room, onEdit, onReply, jumpToEvent
     }
 
     const jump = async () => {
-      // Set synchronously, before any await, so the pre-existing
-      // auto-fill effect can't slip a competing loadMoreHistory() call
-      // into the window before this effect's own first check — closes
-      // the fast-path variant of the same race the loop-path fix
-      // (round 1) already closed for the pagination-required case.
-      setLoadingHistory(true)
+      // The actual race-prevention guard: set synchronously, before any
+      // await, so loadMoreHistory() (called from the pre-existing
+      // auto-fill effect or handleScroll) sees this immediately and
+      // bails out for as long as this jump is in flight — see the ref's
+      // declaration above for why a ref is used here instead of state.
+      jumpInProgressRef.current = true
       try {
-        await new Promise(resolve => requestAnimationFrame(resolve))
-        if (cancelled) return
-        if (room.findEventById(jumpToEventId) && scrollToTarget()) return
-
-        for (let attempts = 0; attempts < 20 && !cancelled; attempts++) {
-          if (roomRef.current !== room) return
-          const hasMore = room.getLiveTimeline().getPaginationToken(EventTimeline.BACKWARDS) != null
-          if (!hasMore) break
-          try {
-            await client.scrollback(room, 30)
-          } catch (err) {
-            console.error('Jump-to-message pagination failed:', err)
-            break
-          }
-          if (cancelled || roomRef.current !== room) return
-          setMessages(extractMessages(client, room))
+        // setLoadingHistory only drives the loading-spinner UI here;
+        // jumpInProgressRef above is what actually prevents the race.
+        setLoadingHistory(true)
+        try {
           await new Promise(resolve => requestAnimationFrame(resolve))
+          if (cancelled) return
           if (room.findEventById(jumpToEventId) && scrollToTarget()) return
+
+          for (let attempts = 0; attempts < 20 && !cancelled; attempts++) {
+            if (roomRef.current !== room) return
+            const hasMore = room.getLiveTimeline().getPaginationToken(EventTimeline.BACKWARDS) != null
+            if (!hasMore) break
+            try {
+              await client.scrollback(room, 30)
+            } catch (err) {
+              console.error('Jump-to-message pagination failed:', err)
+              break
+            }
+            if (cancelled || roomRef.current !== room) return
+            setMessages(extractMessages(client, room))
+            await new Promise(resolve => requestAnimationFrame(resolve))
+            if (room.findEventById(jumpToEventId) && scrollToTarget()) return
+          }
+        } finally {
+          if (!cancelled && roomRef.current === room) setLoadingHistory(false)
         }
       } finally {
-        if (!cancelled && roomRef.current === room) setLoadingHistory(false)
+        jumpInProgressRef.current = false
       }
     }
 
@@ -357,7 +374,7 @@ export default function MessageList({ client, room, onEdit, onReply, jumpToEvent
 
   const loadMoreHistory = async () => {
     const container = containerRef.current
-    if (!container || loadingHistory || reachedStart) return
+    if (!container || loadingHistory || reachedStart || jumpInProgressRef.current) return
     const loadedRoom = room
     setLoadingHistory(true)
     const prevScrollHeight = container.scrollHeight
