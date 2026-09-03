@@ -60,7 +60,7 @@ export default function InputArea({ client, room, editingMessage, onCancelEdit, 
   useEffect(() => {
     try {
       const saved = localStorage.getItem(`qts_draft_${room.roomId}`)
-      if (saved) setValue(saved)
+      setValue(saved || '')
     } catch (err) {
       console.error('Draft load failed:', err)
     }
