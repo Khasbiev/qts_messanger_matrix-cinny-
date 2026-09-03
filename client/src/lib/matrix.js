@@ -412,3 +412,25 @@ export async function leaveRoom(roomId) {
   if (!_client) throw new Error('Not connected')
   await _client.leave(roomId)
 }
+
+export async function updateRoomTopic(roomId, topic) {
+  if (!_client) throw new Error('Not connected')
+  await _client.setRoomTopic(roomId, topic)
+}
+
+export async function updateRoomAvatar(roomId, file) {
+  if (!_client) throw new Error('Not connected')
+  const { content_uri: mxcUrl } = await _client.uploadContent(file, { type: file.type })
+  await _client.sendStateEvent(roomId, 'm.room.avatar', { url: mxcUrl }, '')
+  return mxcUrl
+}
+
+export async function inviteToRoom(roomId, userId) {
+  if (!_client) throw new Error('Not connected')
+  await _client.invite(roomId, userId)
+}
+
+export async function kickFromRoom(roomId, userId) {
+  if (!_client) throw new Error('Not connected')
+  await _client.kick(roomId, userId)
+}
