@@ -24,9 +24,7 @@ export default function App() {
       if (c) {
         try {
           await startSync(c)
-          const rooms = c.getRooms()
           setClient(c)
-          if (rooms.length > 0) setActiveRoom(rooms[0])
         } catch {
           await logout()
         }
@@ -36,9 +34,7 @@ export default function App() {
   }, [])
 
   const handleLogin = (newClient) => {
-    const rooms = newClient.getRooms()
     setClient(newClient)
-    if (rooms.length > 0) setActiveRoom(rooms[0])
   }
 
   const handleLogout = async () => {
