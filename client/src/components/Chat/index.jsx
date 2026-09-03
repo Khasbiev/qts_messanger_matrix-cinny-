@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import Header from './Header'
 import MessageList from './MessageList'
 import InputArea from './InputArea'
@@ -6,11 +6,6 @@ import InputArea from './InputArea'
 export default function Chat({ client, room, navMode, onNav }) {
   const [editingMessage, setEditingMessage] = useState(null)
   const [replyingTo, setReplyingTo] = useState(null)
-
-  useEffect(() => {
-    setEditingMessage(null)
-    setReplyingTo(null)
-  }, [room.roomId])
 
   const handleEdit = (msg) => {
     setReplyingTo(null)

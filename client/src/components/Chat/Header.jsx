@@ -60,6 +60,7 @@ export default function Header({ client, room, navMode, onNav }) {
     const otherUserId = other.userId
     let cancelled = false
 
+    setPresence(null)
     client.getPresence(otherUserId)
       .then(status => { if (!cancelled) setPresence(status.presence) })
       .catch(err => console.error('Presence fetch failed:', err))

@@ -43,6 +43,22 @@ export default function InputArea({ client, room, editingMessage, onCancelEdit, 
     }
   }, [recording])
 
+  // A mount-once effect's cleanup only ever sees the `recording` value from
+  // its first render (stale closure) — so track the live value in a ref and
+  // read that at unmount time instead. This is what actually releases the
+  // mic/camera (getUserMedia stream) if the component unmounts mid-recording
+  // — e.g. Chat now remounts on every room switch (see App.jsx), or the user
+  // navigates back on a narrow screen, or logs out.
+  const recordingRef = useRef(null)
+  useEffect(() => {
+    recordingRef.current = recording
+  }, [recording])
+  useEffect(() => {
+    return () => {
+      recordingRef.current?.controller.cancel()
+    }
+  }, [])
+
   const wasEditingRef = useRef(false)
   useEffect(() => {
     if (editingMessage) {

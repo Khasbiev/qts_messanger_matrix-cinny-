@@ -84,7 +84,7 @@ export default function App() {
         />
       )}
       {showChatPane && (
-        <Chat client={client} room={activeRoom} navMode={navMode} onNav={handleNav} />
+        <Chat key={activeRoom.roomId} client={client} room={activeRoom} navMode={navMode} onNav={handleNav} />
       )}
       {showNoRoomPlaceholder && <NoRoom />}
     </div>
