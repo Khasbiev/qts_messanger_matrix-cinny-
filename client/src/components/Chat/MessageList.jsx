@@ -108,7 +108,8 @@ function extractMessages(client, room) {
         // before truncating, or a reply-to-a-reply chain would show that
         // raw fallback text in the quoted-preview snippet.
         const originalBody = original.getContent().body || ''
-        const cleanOriginalBody = original.replyEventId ? stripReplyFallback(originalBody) : originalBody
+        let cleanOriginalBody = original.replyEventId ? stripReplyFallback(originalBody) : originalBody
+        if (original.getContent()['dev.qts.forwarded_from']) cleanOriginalBody = stripForwardFallback(cleanOriginalBody)
         base.replyTo = {
           sender: originalMember?.name || originalSenderId.replace('@', '').split(':')[0],
           snippet: cleanOriginalBody.slice(0, 120),

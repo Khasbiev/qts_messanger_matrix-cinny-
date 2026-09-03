@@ -399,5 +399,11 @@ export async function forwardMessage(sourceRoomId, message, targetRoomIds) {
   }
   content['dev.qts.forwarded_from'] = forwardedFrom
 
-  return Promise.all(targetRoomIds.map(roomId => _client.sendMessage(roomId, { ...content })))
+  const results = await Promise.allSettled(targetRoomIds.map(roomId => _client.sendMessage(roomId, { ...content })))
+  const failedRoomIds = targetRoomIds.filter((_, i) => results[i].status === 'rejected')
+  if (failedRoomIds.length > 0) {
+    const err = new Error(`Не удалось переслать в ${failedRoomIds.length} из ${targetRoomIds.length} чатов`)
+    err.failedRoomIds = failedRoomIds
+    throw err
+  }
 }

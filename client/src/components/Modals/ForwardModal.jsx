@@ -35,6 +35,9 @@ export default function ForwardModal({ message, roomId, onClose }) {
       await forwardMessage(roomId, message, selectedIds)
       onClose()
     } catch (err) {
+      if (err.failedRoomIds) {
+        setSelectedIds(err.failedRoomIds)
+      }
       setError(err.data?.error || err.message || 'Не удалось переслать сообщение')
       setSending(false)
     }
