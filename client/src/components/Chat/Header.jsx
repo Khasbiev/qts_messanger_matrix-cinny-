@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { RoomMemberEvent } from 'matrix-js-sdk'
+import { RoomMemberEvent, UserEvent } from 'matrix-js-sdk'
 import { IconArrowLeft, IconLayoutSidebarLeftCollapse, IconLayoutSidebarLeftExpand } from '@tabler/icons-react'
 import { colorFor } from '../../lib/avatarColor'
 import { isDirectRoom } from '../../lib/matrix'
@@ -44,9 +44,38 @@ export default function Header({ client, room, navMode, onNav }) {
     return () => client.off(RoomMemberEvent.Typing, onTyping)
   }, [client, room])
 
+  const [presence, setPresence] = useState(null)
+
+  useEffect(() => {
+    if (!isDM) {
+      setPresence(null)
+      return
+    }
+    const me = client.getUserId()
+    const other = room.getJoinedMembers().find(m => m.userId !== me)
+    if (!other) {
+      setPresence(null)
+      return
+    }
+    const otherUserId = other.userId
+
+    client.getPresence(otherUserId)
+      .then(status => setPresence(status.presence))
+      .catch(err => console.error('Presence fetch failed:', err))
+
+    const onPresence = (event, user) => {
+      if (user.userId !== otherUserId) return
+      setPresence(user.presence)
+    }
+    client.on(UserEvent.Presence, onPresence)
+    return () => client.off(UserEvent.Presence, onPresence)
+  }, [client, room, isDM])
+
+  const presenceText = presence === 'online' ? 'в сети' : presence === 'unavailable' ? 'отошёл' : 'не в сети'
+
   const subtitle = typingNames.length > 0
     ? (typingNames.length === 1 ? 'печатает…' : `${typingNames.length} ${pluralizePeople(typingNames.length)} печатают…`)
-    : (isDM ? 'в сети' : `${memberCount} участник${memberCount === 1 ? '' : memberCount < 5 ? 'а' : 'ов'}`)
+    : (isDM ? presenceText : `${memberCount} участник${memberCount === 1 ? '' : memberCount < 5 ? 'а' : 'ов'}`)
 
   return (
     <div style={{
