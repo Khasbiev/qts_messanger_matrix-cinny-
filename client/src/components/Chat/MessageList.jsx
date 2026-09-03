@@ -26,6 +26,16 @@ function stripReplyFallback(body) {
   return separatorIndex === -1 ? body : body.slice(separatorIndex + 2)
 }
 
+// forwardMessage's plain-text body carries a "Переслано от X:\n<text>"
+// fallback for clients that don't understand dev.qts.forwarded_from. Strip
+// it so the bubble shows only the actual text — the forwarded-from label
+// itself is rendered separately, from message.forwardedFrom.
+function stripForwardFallback(body) {
+  if (!body.startsWith('Переслано от ')) return body
+  const separatorIndex = body.indexOf(':\n')
+  return separatorIndex === -1 ? body : body.slice(separatorIndex + 2)
+}
+
 function extractMessages(client, room) {
   const me = client.getUserId()
   const events = room.getLiveTimeline().getEvents()
@@ -83,6 +93,11 @@ function extractMessages(client, room) {
     const content = ev.getContent()
     if (!content?.body) continue
 
+    const forwardedFrom = content['dev.qts.forwarded_from']
+    if (forwardedFrom?.sender && forwardedFrom?.displayName) {
+      base.forwardedFrom = { sender: forwardedFrom.sender, displayName: forwardedFrom.displayName }
+    }
+
     if (ev.replyEventId) {
       const original = room.findEventById(ev.replyEventId)
       if (original && original.getType() === 'm.room.message' && !original.isRedacted()) {
@@ -112,7 +127,10 @@ function extractMessages(client, room) {
     } else if (content.msgtype === 'm.file' && content.url) {
       base.file = { mxcUrl: content.url, name: content.body, ext: (content.body.split('.').pop() || '').toLowerCase(), size: formatFileSize(content.info?.size) }
     } else {
-      base.text = base.replyTo ? stripReplyFallback(content.body) : content.body
+      let bodyText = content.body
+      if (base.replyTo) bodyText = stripReplyFallback(bodyText)
+      if (base.forwardedFrom) bodyText = stripForwardFallback(bodyText)
+      base.text = bodyText
     }
 
     byId.set(base.id, base)

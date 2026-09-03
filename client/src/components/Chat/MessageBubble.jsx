@@ -3,6 +3,7 @@ import { IconDownload, IconLoader2, IconPlayerPlay, IconPlayerPause } from '@tab
 import { resolveMediaUrl, toggleReaction, deleteMessage } from '../../lib/matrix'
 import MessageActions from './MessageActions'
 import Modal from '../Modals/Modal'
+import ForwardModal from '../Modals/ForwardModal'
 
 function formatDuration(totalSeconds) {
   const m = Math.floor(totalSeconds / 60)
@@ -198,6 +199,7 @@ function DownloadButton({ mxcUrl, name }) {
 export default function MessageBubble({ message, roomId, onEdit, onReply }) {
   const [hovered, setHovered] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
+  const [forwardOpen, setForwardOpen] = useState(false)
 
   if (message.type === 'date') {
     return (
@@ -284,6 +286,7 @@ export default function MessageBubble({ message, roomId, onEdit, onReply }) {
           message={message}
           onReact={handleReact}
           onReply={() => onReply(message)}
+          onForward={() => setForwardOpen(true)}
           onEdit={isOwn && text != null ? () => onEdit(message) : undefined}
           onDeleteClick={isOwn ? () => setConfirmOpen(true) : undefined}
         />
@@ -331,6 +334,13 @@ export default function MessageBubble({ message, roomId, onEdit, onReply }) {
           borderRadius: isOwn ? '12px 12px 3px 12px' : '12px 12px 12px 3px',
           padding: '8px 12px',
         }}>
+          {message.forwardedFrom && (
+            <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <span style={{ color: 'var(--accent-teal)' }}>↪</span>
+              Переслано от {message.forwardedFrom.displayName}
+            </div>
+          )}
+
           {message.replyTo && (
             <div style={{
               borderLeft: '2px solid var(--accent-teal)',
@@ -486,6 +496,9 @@ export default function MessageBubble({ message, roomId, onEdit, onReply }) {
       >
         <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Это действие нельзя отменить.</div>
       </Modal>
+    )}
+    {forwardOpen && (
+      <ForwardModal message={message} roomId={roomId} onClose={() => setForwardOpen(false)} />
     )}
     </>
   )

@@ -22,7 +22,7 @@ function ActionButton({ onClick, title, children }) {
   )
 }
 
-export default function MessageActions({ message, onReact, onReply, onEdit, onDeleteClick }) {
+export default function MessageActions({ message, onReact, onReply, onEdit, onDeleteClick, onForward }) {
   const [quickOpen, setQuickOpen] = useState(false)
   const [fullPickerOpen, setFullPickerOpen] = useState(false)
 
@@ -49,6 +49,9 @@ export default function MessageActions({ message, onReact, onReply, onEdit, onDe
         </ActionButton>
         {onReply && (
           <ActionButton onClick={onReply} title="Ответить">↩</ActionButton>
+        )}
+        {onForward && (
+          <ActionButton onClick={onForward} title="Переслать">➦</ActionButton>
         )}
         {onEdit && (
           <ActionButton onClick={onEdit} title="Редактировать">✎</ActionButton>

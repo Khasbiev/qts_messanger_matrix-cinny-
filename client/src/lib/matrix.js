@@ -379,3 +379,25 @@ export async function sendReply(roomId, text, replyTo) {
     'm.relates_to': { 'm.in_reply_to': { event_id: replyTo.id } },
   })
 }
+
+export async function forwardMessage(sourceRoomId, message, targetRoomIds) {
+  if (!_client) throw new Error('Not connected')
+  const forwardedFrom = { sender: message.senderId, displayName: message.sender }
+
+  let content
+  if (message.text != null) {
+    content = {
+      msgtype: 'm.text',
+      body: `Переслано от ${message.sender}:\n${message.text}`,
+    }
+  } else {
+    const sourceRoom = _client.getRoom(sourceRoomId)
+    const event = sourceRoom?.findEventById(message.id)
+    if (!event) throw new Error('Исходное сообщение недоступно')
+    content = { ...event.getContent() }
+    delete content['m.relates_to']
+  }
+  content['dev.qts.forwarded_from'] = forwardedFrom
+
+  return Promise.all(targetRoomIds.map(roomId => _client.sendMessage(roomId, { ...content })))
+}
