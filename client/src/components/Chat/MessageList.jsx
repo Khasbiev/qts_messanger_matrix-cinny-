@@ -220,20 +220,29 @@ export default function MessageList({ client, room, onEdit, onReply, jumpToEvent
       if (cancelled) return
       if (room.findEventById(jumpToEventId) && scrollToTarget()) return
 
-      for (let attempts = 0; attempts < 20 && !cancelled; attempts++) {
-        if (roomRef.current !== room) return
-        const hasMore = room.getLiveTimeline().getPaginationToken(EventTimeline.BACKWARDS) != null
-        if (!hasMore) break
-        try {
-          await client.scrollback(room, 30)
-        } catch (err) {
-          console.error('Jump-to-message pagination failed:', err)
-          break
+      // Reuse the same loadingHistory flag loadMoreHistory() already
+      // guards on, so the pre-existing auto-fill pagination effect can't
+      // run concurrently and clobber this effect's own scroll position
+      // with its own (now-stale) scroll-preserving compensation.
+      setLoadingHistory(true)
+      try {
+        for (let attempts = 0; attempts < 20 && !cancelled; attempts++) {
+          if (roomRef.current !== room) return
+          const hasMore = room.getLiveTimeline().getPaginationToken(EventTimeline.BACKWARDS) != null
+          if (!hasMore) break
+          try {
+            await client.scrollback(room, 30)
+          } catch (err) {
+            console.error('Jump-to-message pagination failed:', err)
+            break
+          }
+          if (cancelled || roomRef.current !== room) return
+          setMessages(extractMessages(client, room))
+          await new Promise(resolve => requestAnimationFrame(resolve))
+          if (room.findEventById(jumpToEventId) && scrollToTarget()) return
         }
-        if (cancelled || roomRef.current !== room) return
-        setMessages(extractMessages(client, room))
-        await new Promise(resolve => requestAnimationFrame(resolve))
-        if (room.findEventById(jumpToEventId) && scrollToTarget()) return
+      } finally {
+        if (!cancelled && roomRef.current === room) setLoadingHistory(false)
       }
       // Cap hit, or the target was never found — fall back silently.
     }
