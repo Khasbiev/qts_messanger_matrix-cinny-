@@ -2,25 +2,14 @@ import { useState, useEffect, useCallback } from 'react'
 import { IconSearch, IconPlus, IconMenu2 } from '@tabler/icons-react'
 import { ClientEvent, RoomEvent } from 'matrix-js-sdk'
 import ChatItem from './ChatItem'
+import SearchResults from './SearchResults'
 import UserMenu from './UserMenu'
 import NewDmModal from '../Modals/NewDmModal'
 import NewChannelModal from '../Modals/NewChannelModal'
 import SettingsModal from '../Modals/SettingsModal'
 import ContactsModal from '../Modals/ContactsModal'
 import { waitForRoom, isDirectRoom } from '../../lib/matrix'
-
-function formatChatTime(ts) {
-  if (!ts) return ''
-  const date = new Date(ts)
-  const now = new Date()
-  if (date.toDateString() === now.toDateString()) {
-    return date.toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit' })
-  }
-  const yesterday = new Date(now)
-  yesterday.setDate(now.getDate() - 1)
-  if (date.toDateString() === yesterday.toDateString()) return 'вчера'
-  return date.toLocaleDateString('ru', { day: '2-digit', month: '2-digit' })
-}
+import { formatChatTime } from '../../lib/formatTime'
 
 function getPreview(room) {
   const events = room.getLiveTimeline().getEvents()
@@ -58,6 +47,7 @@ function categorize(client, rooms) {
 
 export default function Sidebar({ client, activeRoom, onRoomSelect, onLogout, fullWidth }) {
   const [rooms, setRooms] = useState(() => categorize(client, client.getRooms()))
+  const [query, setQuery] = useState('')
 
   const refresh = useCallback(() => {
     setRooms(categorize(client, client.getRooms()))
@@ -68,6 +58,11 @@ export default function Sidebar({ client, activeRoom, onRoomSelect, onLogout, fu
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   const [showContacts, setShowContacts] = useState(false)
+
+  const handleSearchSelect = (room, opts) => {
+    onRoomSelect(room, opts)
+    setQuery('')
+  }
 
   const handleCreated = async (roomId) => {
     setShowNewDm(false)
@@ -118,7 +113,12 @@ export default function Sidebar({ client, activeRoom, onRoomSelect, onLogout, fu
         </button>
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '6px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '6px', padding: '6px 10px', minWidth: 0 }}>
           <IconSearch size={13} color="var(--text-muted)" strokeWidth={2} />
-          <input placeholder="Поиск..." style={{ background: 'none', border: 'none', outline: 'none', color: 'var(--text-primary)', width: '100%', fontSize: '13px' }} />
+          <input
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            placeholder="Поиск..."
+            style={{ background: 'none', border: 'none', outline: 'none', color: 'var(--text-primary)', width: '100%', fontSize: '13px' }}
+          />
         </div>
       </div>
 
@@ -132,52 +132,56 @@ export default function Sidebar({ client, activeRoom, onRoomSelect, onLogout, fu
         />
       )}
 
-      {/* Room list */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '0 0 8px' }}>
-        <SectionHeader label="КАНАЛЫ" onClick={() => setShowNewChannel(true)} />
-        {rooms.channels.length > 0 && (
-          <>
-            {rooms.channels.map(room => {
-              const preview = getPreview(room)
-              return (
-                <ChatItem
-                  key={room.roomId}
-                  item={{ id: room.roomId, name: room.name, unread: room.getUnreadNotificationCount(), preview: preview.text, time: preview.time }}
-                  type="channel"
-                  isActive={activeRoom?.roomId === room.roomId}
-                  onSelect={() => onRoomSelect(room)}
-                />
-              )
-            })}
-          </>
-        )}
+      {/* Room list / search results */}
+      {query.trim() ? (
+        <SearchResults client={client} query={query} onRoomSelect={handleSearchSelect} />
+      ) : (
+        <div style={{ flex: 1, overflowY: 'auto', padding: '0 0 8px' }}>
+          <SectionHeader label="КАНАЛЫ" onClick={() => setShowNewChannel(true)} />
+          {rooms.channels.length > 0 && (
+            <>
+              {rooms.channels.map(room => {
+                const preview = getPreview(room)
+                return (
+                  <ChatItem
+                    key={room.roomId}
+                    item={{ id: room.roomId, name: room.name, unread: room.getUnreadNotificationCount(), preview: preview.text, time: preview.time }}
+                    type="channel"
+                    isActive={activeRoom?.roomId === room.roomId}
+                    onSelect={() => onRoomSelect(room)}
+                  />
+                )
+              })}
+            </>
+          )}
 
-        <SectionHeader label="ЛИЧНЫЕ СООБЩЕНИЯ" style={{ marginTop: '8px' }} onClick={() => setShowNewDm(true)} />
-        {rooms.dms.length > 0 && (
-          <>
-            {rooms.dms.map(room => {
-              const other = room.getJoinedMembers().find(m => m.userId !== client.getUserId())
-              const name = other?.name || room.name
-              const preview = getPreview(room)
-              return (
-                <ChatItem
-                  key={room.roomId}
-                  item={{ id: room.roomId, name, avatar: name.slice(0, 2).toUpperCase(), online: false, unread: room.getUnreadNotificationCount(), preview: preview.text, time: preview.time }}
-                  type="dm"
-                  isActive={activeRoom?.roomId === room.roomId}
-                  onSelect={() => onRoomSelect(room)}
-                />
-              )
-            })}
-          </>
-        )}
+          <SectionHeader label="ЛИЧНЫЕ СООБЩЕНИЯ" style={{ marginTop: '8px' }} onClick={() => setShowNewDm(true)} />
+          {rooms.dms.length > 0 && (
+            <>
+              {rooms.dms.map(room => {
+                const other = room.getJoinedMembers().find(m => m.userId !== client.getUserId())
+                const name = other?.name || room.name
+                const preview = getPreview(room)
+                return (
+                  <ChatItem
+                    key={room.roomId}
+                    item={{ id: room.roomId, name, avatar: name.slice(0, 2).toUpperCase(), online: false, unread: room.getUnreadNotificationCount(), preview: preview.text, time: preview.time }}
+                    type="dm"
+                    isActive={activeRoom?.roomId === room.roomId}
+                    onSelect={() => onRoomSelect(room)}
+                  />
+                )
+              })}
+            </>
+          )}
 
-        {rooms.channels.length === 0 && rooms.dms.length === 0 && (
-          <div style={{ padding: '24px 14px', color: 'var(--text-muted)', fontSize: '12px', textAlign: 'center' }}>
-            Нет доступных комнат
-          </div>
-        )}
-      </div>
+          {rooms.channels.length === 0 && rooms.dms.length === 0 && (
+            <div style={{ padding: '24px 14px', color: 'var(--text-muted)', fontSize: '12px', textAlign: 'center' }}>
+              Нет доступных комнат
+            </div>
+          )}
+        </div>
+      )}
 
       {showNewDm && (
         <NewDmModal onClose={() => setShowNewDm(false)} onCreated={handleCreated} />

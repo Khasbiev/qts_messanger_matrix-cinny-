@@ -434,3 +434,22 @@ export async function kickFromRoom(roomId, userId) {
   if (!_client) throw new Error('Not connected')
   await _client.kick(roomId, userId)
 }
+
+export async function searchMessages(term) {
+  if (!_client) throw new Error('Not connected')
+  const results = await _client.searchRoomEvents({ term })
+  return results.results.map(r => {
+    const event = r.context.getEvent()
+    const roomId = event.getRoomId()
+    const room = _client.getRoom(roomId)
+    return {
+      id: event.getId(),
+      roomId,
+      roomName: room?.name || roomId,
+      senderId: event.getSender(),
+      senderName: room?.getMember(event.getSender())?.name || event.getSender(),
+      body: event.getContent()?.body || '',
+      ts: event.getTs(),
+    }
+  })
+}
