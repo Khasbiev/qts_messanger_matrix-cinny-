@@ -216,16 +216,17 @@ export default function MessageList({ client, room, onEdit, onReply, jumpToEvent
     }
 
     const jump = async () => {
-      await new Promise(resolve => requestAnimationFrame(resolve))
-      if (cancelled) return
-      if (room.findEventById(jumpToEventId) && scrollToTarget()) return
-
-      // Reuse the same loadingHistory flag loadMoreHistory() already
-      // guards on, so the pre-existing auto-fill pagination effect can't
-      // run concurrently and clobber this effect's own scroll position
-      // with its own (now-stale) scroll-preserving compensation.
+      // Set synchronously, before any await, so the pre-existing
+      // auto-fill effect can't slip a competing loadMoreHistory() call
+      // into the window before this effect's own first check — closes
+      // the fast-path variant of the same race the loop-path fix
+      // (round 1) already closed for the pagination-required case.
       setLoadingHistory(true)
       try {
+        await new Promise(resolve => requestAnimationFrame(resolve))
+        if (cancelled) return
+        if (room.findEventById(jumpToEventId) && scrollToTarget()) return
+
         for (let attempts = 0; attempts < 20 && !cancelled; attempts++) {
           if (roomRef.current !== room) return
           const hasMore = room.getLiveTimeline().getPaginationToken(EventTimeline.BACKWARDS) != null
@@ -244,7 +245,6 @@ export default function MessageList({ client, room, onEdit, onReply, jumpToEvent
       } finally {
         if (!cancelled && roomRef.current === room) setLoadingHistory(false)
       }
-      // Cap hit, or the target was never found — fall back silently.
     }
 
     jump()
