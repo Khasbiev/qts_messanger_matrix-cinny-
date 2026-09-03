@@ -437,7 +437,7 @@ export async function kickFromRoom(roomId, userId) {
 
 export async function searchMessages(term) {
   if (!_client) throw new Error('Not connected')
-  const results = await _client.searchRoomEvents({ term })
+  const results = await _client.searchRoomEvents({ term, filter: { types: ['m.room.message'] } })
   return results.results.map(r => {
     const event = r.context.getEvent()
     const roomId = event.getRoomId()
