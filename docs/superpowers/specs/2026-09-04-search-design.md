@@ -16,8 +16,9 @@ The SDK hardcodes `order_by: 'recent'` internally (see
 `client.js`'s `searchRoomEvents`), so results already come back
 newest-first with no client-side re-sorting needed. Each result
 (`SearchResult`) exposes `.context.getEvent()`, a `MatrixEvent` with
-`.getRoomId()`, `.getSender()`, `.getContent()`, `.getId()`,
-`.getOriginServerTs()`.
+`.getRoomId()`, `.getSender()`, `.getContent()`, `.getId()`, and
+`.getTs()` (the same timestamp accessor already used elsewhere in this
+codebase, e.g. `Sidebar/index.jsx`'s `getPreview`).
 
 There's no existing "jump to an arbitrary message" capability in
 `MessageList.jsx`. History pagination (already shipped) loads older
@@ -89,7 +90,7 @@ export async function searchMessages(term) {
       senderId: event.getSender(),
       senderName: room?.getMember(event.getSender())?.name || event.getSender(),
       body: event.getContent()?.body || '',
-      ts: event.getOriginServerTs(),
+      ts: event.getTs(),
     }
   })
 }
