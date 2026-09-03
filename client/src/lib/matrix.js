@@ -407,3 +407,8 @@ export async function forwardMessage(sourceRoomId, message, targetRoomIds) {
     throw err
   }
 }
+
+export async function leaveRoom(roomId) {
+  if (!_client) throw new Error('Not connected')
+  await _client.leave(roomId)
+}

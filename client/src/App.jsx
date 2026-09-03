@@ -48,6 +48,10 @@ export default function App() {
     if (isNarrow) setListVisible(false)
   }
 
+  const handleLeaveRoom = () => {
+    setActiveRoom(null)
+  }
+
   if (loading) {
     return (
       <div style={{ height: '100vh', background: 'var(--bg-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -84,7 +88,7 @@ export default function App() {
         />
       )}
       {showChatPane && (
-        <Chat key={activeRoom.roomId} client={client} room={activeRoom} navMode={navMode} onNav={handleNav} />
+        <Chat key={activeRoom.roomId} client={client} room={activeRoom} navMode={navMode} onNav={handleNav} onLeave={handleLeaveRoom} />
       )}
       {showNoRoomPlaceholder && <NoRoom />}
     </div>

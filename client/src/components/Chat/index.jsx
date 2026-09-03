@@ -3,7 +3,7 @@ import Header from './Header'
 import MessageList from './MessageList'
 import InputArea from './InputArea'
 
-export default function Chat({ client, room, navMode, onNav }) {
+export default function Chat({ client, room, navMode, onNav, onLeave }) {
   const [editingMessage, setEditingMessage] = useState(null)
   const [replyingTo, setReplyingTo] = useState(null)
 
@@ -26,7 +26,7 @@ export default function Chat({ client, room, navMode, onNav }) {
       background: 'var(--bg-primary)',
       minWidth: 0,
     }}>
-      <Header client={client} room={room} navMode={navMode} onNav={onNav} />
+      <Header client={client} room={room} navMode={navMode} onNav={onNav} onLeave={onLeave} />
       <MessageList client={client} room={room} onEdit={handleEdit} onReply={handleReply} />
       <InputArea
         client={client}

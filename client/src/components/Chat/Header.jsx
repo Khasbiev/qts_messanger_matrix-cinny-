@@ -3,6 +3,7 @@ import { RoomMemberEvent, UserEvent } from 'matrix-js-sdk'
 import { IconArrowLeft, IconLayoutSidebarLeftCollapse, IconLayoutSidebarLeftExpand } from '@tabler/icons-react'
 import { colorFor } from '../../lib/avatarColor'
 import { isDirectRoom } from '../../lib/matrix'
+import ChatInfoModal from '../Modals/ChatInfoModal'
 
 const NAV_ICON = {
   back: IconArrowLeft,
@@ -18,7 +19,7 @@ function pluralizePeople(count) {
   return 'человек'
 }
 
-export default function Header({ client, room, navMode, onNav }) {
+export default function Header({ client, room, navMode, onNav, onLeave }) {
   const memberCount = room.getJoinedMemberCount()
   const isDM = isDirectRoom(client, room.roomId)
   const color = colorFor(room.roomId)
@@ -43,6 +44,8 @@ export default function Header({ client, room, navMode, onNav }) {
     client.on(RoomMemberEvent.Typing, onTyping)
     return () => client.off(RoomMemberEvent.Typing, onTyping)
   }, [client, room])
+
+  const [infoOpen, setInfoOpen] = useState(false)
 
   const [presence, setPresence] = useState(null)
 
@@ -105,31 +108,39 @@ export default function Header({ client, room, navMode, onNav }) {
         </button>
       )}
 
-      <div style={{
-        width: '36px',
-        height: '36px',
-        borderRadius: '50%',
-        background: color.bg,
-        color: color.fg,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        fontSize: '12px',
-        fontWeight: 600,
-        flexShrink: 0,
-      }}>
-        {avatarLabel}
+      <div
+        onClick={() => setInfoOpen(true)}
+        style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flex: 1, cursor: 'pointer' }}
+      >
+        <div style={{
+          width: '36px',
+          height: '36px',
+          borderRadius: '50%',
+          background: color.bg,
+          color: color.fg,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: '12px',
+          fontWeight: 600,
+          flexShrink: 0,
+        }}>
+          {avatarLabel}
+        </div>
+
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontWeight: 600, fontSize: '15px', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {room.name}
+          </div>
+          <div style={{ fontSize: '12px', color: 'var(--accent-teal)', marginTop: '1px' }}>
+            {subtitle}
+          </div>
+        </div>
       </div>
 
-      <div style={{ minWidth: 0 }}>
-        <div style={{ fontWeight: 600, fontSize: '15px', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          {room.name}
-        </div>
-        <div style={{ fontSize: '12px', color: 'var(--accent-teal)', marginTop: '1px' }}>
-          {subtitle}
-        </div>
-      </div>
-
+      {infoOpen && (
+        <ChatInfoModal client={client} room={room} onClose={() => setInfoOpen(false)} onLeave={onLeave} />
+      )}
     </div>
   )
 }
