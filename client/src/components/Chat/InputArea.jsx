@@ -6,6 +6,9 @@ import {
 import { sendMessage, uploadFile, uploadVoiceMessage, uploadVideoNote, editMessage, sendReply } from '../../lib/matrix'
 import { startRecording } from '../../lib/mediaRecorder'
 import EmojiPicker from './EmojiPicker'
+import MentionAutocomplete from './MentionAutocomplete'
+
+const MAX_MENTION_SUGGESTIONS = 8
 
 function formatTimer(ms) {
   const totalSeconds = Math.floor(ms / 1000)
@@ -19,6 +22,9 @@ export default function InputArea({ client, room, editingMessage, onCancelEdit, 
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState('')
   const [showEmoji, setShowEmoji] = useState(false)
+  const [mentionQuery, setMentionQuery] = useState(null)
+  const [mentionStart, setMentionStart] = useState(0)
+  const [mentionIndex, setMentionIndex] = useState(0)
   const [recording, setRecording] = useState(null) // { kind, controller, startedAt }
   const [now, setNow] = useState(0)
   const textareaRef = useRef(null)
@@ -131,6 +137,28 @@ export default function InputArea({ client, room, editingMessage, onCancelEdit, 
   }, [room])
 
   const handleKeyDown = (e) => {
+    if (mentionQuery != null && mentionMembers.length > 0) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault()
+        setMentionIndex(i => (i + 1) % mentionMembers.length)
+        return
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault()
+        setMentionIndex(i => (i - 1 + mentionMembers.length) % mentionMembers.length)
+        return
+      }
+      if (e.key === 'Enter' || e.key === 'Tab') {
+        e.preventDefault()
+        selectMention(mentionMembers[mentionIndex])
+        return
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        setMentionQuery(null)
+        return
+      }
+    }
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       handleSend()
@@ -161,17 +189,48 @@ export default function InputArea({ client, room, editingMessage, onCancelEdit, 
   }
 
   const handleInput = (e) => {
-    setValue(e.target.value)
+    const val = e.target.value
+    setValue(val)
     e.target.style.height = 'auto'
     e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px'
-    if (e.target.value.trim()) {
+    if (val.trim()) {
       notifyTyping()
     } else {
       stopTyping()
     }
     if (!editingMessage && !replyingTo) {
-      saveDraft(e.target.value)
+      saveDraft(val)
     }
+
+    const uptoCaret = val.slice(0, e.target.selectionStart)
+    const match = uptoCaret.match(/(?:^|\s)@([^\s@]*)$/)
+    if (match) {
+      setMentionQuery(match[1])
+      setMentionStart(e.target.selectionStart - match[1].length - 1)
+      setMentionIndex(0)
+    } else {
+      setMentionQuery(null)
+    }
+  }
+
+  const mentionMembers = mentionQuery == null ? [] : room.getJoinedMembers()
+    .filter(m => m.userId !== client.getUserId() && m.name)
+    .filter(m => m.name.toLowerCase().includes(mentionQuery.toLowerCase()))
+    .slice(0, MAX_MENTION_SUGGESTIONS)
+
+  const selectMention = (member) => {
+    const caret = textareaRef.current?.selectionStart ?? value.length
+    const before = value.slice(0, mentionStart)
+    const after = value.slice(caret)
+    const insertion = `@${member.name} `
+    const newValue = before + insertion + after
+    setValue(newValue)
+    setMentionQuery(null)
+    requestAnimationFrame(() => {
+      const pos = before.length + insertion.length
+      textareaRef.current?.focus()
+      textareaRef.current?.setSelectionRange(pos, pos)
+    })
   }
 
   const insertEmoji = (emoji) => {
@@ -235,6 +294,15 @@ export default function InputArea({ client, room, editingMessage, onCancelEdit, 
       <input ref={fileInputRef} type="file" style={{ display: 'none' }} onChange={handleFileChange} />
 
       {showEmoji && <EmojiPicker onPick={insertEmoji} onClose={() => setShowEmoji(false)} />}
+
+      {mentionQuery != null && mentionMembers.length > 0 && (
+        <MentionAutocomplete
+          members={mentionMembers}
+          selectedIndex={mentionIndex}
+          onSelect={selectMention}
+          onHover={setMentionIndex}
+        />
+      )}
 
       {(editingMessage || replyingTo) && (
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 12px', marginBottom: '4px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '10px', borderLeft: '3px solid var(--accent-teal)' }}>
