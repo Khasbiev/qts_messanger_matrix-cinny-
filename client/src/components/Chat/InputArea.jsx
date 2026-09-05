@@ -20,6 +20,8 @@ function formatTimer(ms) {
 export default function InputArea({ client, room, editingMessage, onCancelEdit, replyingTo, onCancelReply, onFiles, uploading, uploadError }) {
   const [value, setValue] = useState('')
   const [showEmoji, setShowEmoji] = useState(false)
+  const [recordingBusy, setRecordingBusy] = useState(false)
+  const [recordingError, setRecordingError] = useState('')
   const [mentionQuery, setMentionQuery] = useState(null)
   const [mentionStart, setMentionStart] = useState(0)
   const [mentionIndex, setMentionIndex] = useState(0)
@@ -237,13 +239,13 @@ export default function InputArea({ client, room, editingMessage, onCancelEdit, 
   }
 
   const handleStartRecording = async (kind) => {
-    setUploadError('')
+    setRecordingError('')
     try {
       const controller = await startRecording(kind)
       setRecording({ kind, controller, startedAt: Date.now() })
       setNow(Date.now())
     } catch {
-      setUploadError(kind === 'video' ? 'Нет доступа к камере' : 'Нет доступа к микрофону')
+      setRecordingError(kind === 'video' ? 'Нет доступа к камере' : 'Нет доступа к микрофону')
     }
   }
 
@@ -258,15 +260,15 @@ export default function InputArea({ client, room, editingMessage, onCancelEdit, 
     const durationMs = Date.now() - startedAt
     setRecording(null)
     if (durationMs < 500) return // too short to be intentional
-    setUploading(true)
+    setRecordingBusy(true)
     try {
       const blob = await controller.stop()
       if (kind === 'voice') await uploadVoiceMessage(room.roomId, blob, durationMs)
       else await uploadVideoNote(room.roomId, blob, durationMs)
     } catch (err) {
-      setUploadError(err.data?.error || err.message || 'Не удалось отправить запись')
+      setRecordingError(err.data?.error || err.message || 'Не удалось отправить запись')
     } finally {
-      setUploading(false)
+      setRecordingBusy(false)
     }
   }
 
@@ -374,9 +376,9 @@ export default function InputArea({ client, room, editingMessage, onCancelEdit, 
         )}
       </div>
 
-      {(uploadError || uploading) && (
-        <div style={{ fontSize: '11px', color: uploadError ? '#ff4d4d' : 'var(--text-muted)', padding: '4px 2px 0', textAlign: 'right' }}>
-          {uploadError || (uploading.total > 1 ? `Загрузка файла ${uploading.current} из ${uploading.total}...` : 'Загрузка...')}
+      {(uploadError || uploading || recordingError || recordingBusy) && (
+        <div style={{ fontSize: '11px', color: (uploadError || recordingError) ? '#ff4d4d' : 'var(--text-muted)', padding: '4px 2px 0', textAlign: 'right' }}>
+          {uploadError || recordingError || (uploading && uploading.total > 1 ? `Загрузка файла ${uploading.current} из ${uploading.total}...` : 'Загрузка...')}
         </div>
       )}
 
