@@ -1,4 +1,5 @@
 import { createClient, ClientEvent, RoomEvent } from 'matrix-js-sdk'
+import { findMentionSpans, buildMentionHtml } from './mentions'
 
 const STORAGE_KEY = 'qts_matrix_session'
 
@@ -119,9 +120,24 @@ export async function logout() {
   localStorage.removeItem(STORAGE_KEY)
 }
 
+function mentionCandidates(roomId) {
+  const room = _client.getRoom(roomId)
+  if (!room) return []
+  const me = _client.getUserId()
+  return room.getJoinedMembers().filter(m => m.userId !== me)
+}
+
 export async function sendMessage(roomId, text) {
   if (!_client) throw new Error('Not connected')
-  return _client.sendTextMessage(roomId, text)
+  const spans = findMentionSpans(text, mentionCandidates(roomId))
+  if (spans.length === 0) return _client.sendTextMessage(roomId, text)
+  return _client.sendMessage(roomId, {
+    msgtype: 'm.text',
+    body: text,
+    format: 'org.matrix.custom.html',
+    formatted_body: buildMentionHtml(text, spans, escapeHtml),
+    'm.mentions': { user_ids: [...new Set(spans.map(s => s.userId))] },
+  })
 }
 
 export async function uploadFile(roomId, file) {
@@ -340,10 +356,17 @@ export async function toggleReaction(roomId, message, emoji) {
 
 export async function editMessage(roomId, eventId, newText) {
   if (!_client) throw new Error('Not connected')
+  const spans = findMentionSpans(newText, mentionCandidates(roomId))
+  const newContent = { msgtype: 'm.text', body: newText }
+  if (spans.length > 0) {
+    newContent.format = 'org.matrix.custom.html'
+    newContent.formatted_body = buildMentionHtml(newText, spans, escapeHtml)
+    newContent['m.mentions'] = { user_ids: [...new Set(spans.map(s => s.userId))] }
+  }
   return _client.sendMessage(roomId, {
     msgtype: 'm.text',
     body: `* ${newText}`,
-    'm.new_content': { msgtype: 'm.text', body: newText },
+    'm.new_content': newContent,
     'm.relates_to': { rel_type: 'm.replace', event_id: eventId },
   })
 }
@@ -369,15 +392,19 @@ export async function sendReply(roomId, text, replyTo) {
     .map((line, i) => (i === 0 ? `> <${replyTo.senderId}> ${line}` : `> ${line}`))
     .join('\n')
   const plainFallback = `${quoted}\n\n${text}`
-  const htmlFallback = `<mx-reply><blockquote><a href="https://matrix.to/#/${roomId}/${replyTo.id}">In reply to</a> <a href="https://matrix.to/#/${replyTo.senderId}">${escapeHtml(replyTo.sender)}</a><br />${escapeHtml(snippet)}</blockquote></mx-reply>${escapeHtml(text)}`
+  const spans = findMentionSpans(text, mentionCandidates(roomId))
+  const replyBodyHtml = spans.length > 0 ? buildMentionHtml(text, spans, escapeHtml) : escapeHtml(text)
+  const htmlFallback = `<mx-reply><blockquote><a href="https://matrix.to/#/${roomId}/${replyTo.id}">In reply to</a> <a href="https://matrix.to/#/${replyTo.senderId}">${escapeHtml(replyTo.sender)}</a><br />${escapeHtml(snippet)}</blockquote></mx-reply>${replyBodyHtml}`
 
-  return _client.sendMessage(roomId, {
+  const content = {
     msgtype: 'm.text',
     body: plainFallback,
     format: 'org.matrix.custom.html',
     formatted_body: htmlFallback,
     'm.relates_to': { 'm.in_reply_to': { event_id: replyTo.id } },
-  })
+  }
+  if (spans.length > 0) content['m.mentions'] = { user_ids: [...new Set(spans.map(s => s.userId))] }
+  return _client.sendMessage(roomId, content)
 }
 
 export async function forwardMessage(sourceRoomId, message, targetRoomIds) {
