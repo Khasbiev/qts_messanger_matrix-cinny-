@@ -2,23 +2,40 @@ import { useState, useEffect, useRef } from 'react'
 import { IconDownload, IconLoader2, IconPlayerPlay, IconPlayerPause } from '@tabler/icons-react'
 import { resolveMediaUrl, toggleReaction, deleteMessage } from '../../lib/matrix'
 import { findMentionSpans } from '../../lib/mentions'
+import { findUrlSpans } from '../../lib/linkify'
 import MessageActions from './MessageActions'
 import Modal from '../Modals/Modal'
 import ForwardModal from '../Modals/ForwardModal'
 
-function renderWithMentions(text, mentions) {
-  if (!mentions?.length) return text
-  const spans = findMentionSpans(text, mentions)
+function renderMessageText(text, mentions, urlSpans) {
+  const mentionSpans = mentions?.length ? findMentionSpans(text, mentions) : []
+  const linkSpans = urlSpans.filter(u => !mentionSpans.some(m => u.start < m.end && u.end > m.start))
+  const spans = [...mentionSpans, ...linkSpans].sort((a, b) => a.start - b.start)
   if (spans.length === 0) return text
   const nodes = []
   let cursor = 0
   spans.forEach((span, i) => {
     if (span.start > cursor) nodes.push(text.slice(cursor, span.start))
-    nodes.push(
-      <span key={i} style={{ color: 'var(--accent-orange)', fontWeight: 600 }}>
-        {text.slice(span.start, span.end)}
-      </span>
-    )
+    if (span.url) {
+      nodes.push(
+        <a
+          key={i}
+          href={span.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={e => e.stopPropagation()}
+          style={{ color: 'var(--accent-teal)', textDecoration: 'underline' }}
+        >
+          {text.slice(span.start, span.end)}
+        </a>
+      )
+    } else {
+      nodes.push(
+        <span key={i} style={{ color: 'var(--accent-orange)', fontWeight: 600 }}>
+          {text.slice(span.start, span.end)}
+        </span>
+      )
+    }
     cursor = span.end
   })
   if (cursor < text.length) nodes.push(text.slice(cursor))
@@ -270,6 +287,7 @@ export default function MessageBubble({ message, roomId, onEdit, onReply, highli
   }
 
   const { isOwn, sender, avatar, time, text, file, image, voice, roundVideo, reactions, readBy } = message
+  const urlSpans = text ? findUrlSpans(text) : []
 
   const handleReact = async (emoji) => {
     try {
@@ -383,7 +401,7 @@ export default function MessageBubble({ message, roomId, onEdit, onReply, highli
 
           {text && (
             <p style={{ fontSize: '14px', color: 'var(--text-primary)', lineHeight: '1.5', margin: 0 }}>
-              {renderWithMentions(text, message.mentions)}
+              {renderMessageText(text, message.mentions, urlSpans)}
             </p>
           )}
 
