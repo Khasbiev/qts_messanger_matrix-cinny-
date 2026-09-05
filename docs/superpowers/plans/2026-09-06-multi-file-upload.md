@@ -31,6 +31,8 @@
 
 - [ ] **Step 1: Remove upload state and logic from `InputArea.jsx`, accept props instead**
 
+**Correction found during review:** `uploading`/`uploadError` in this file are NOT only used by file uploads — `handleStartRecording` and `handleSendRecording` (the voice/video-note recording feature, further down in this same file) also call `setUploadError`/`setUploading`. Deleting the local state pair without giving the recording feature its own replacement breaks recording with a `ReferenceError`. The steps below account for this: the file-batch `uploading`/`uploadError` become props, and recording gets its own new local `recordingBusy`/`recordingError` state instead of sharing names with the deleted setters.
+
 Find:
 
 ```jsx
@@ -46,8 +48,12 @@ Replace with:
 ```jsx
 export default function InputArea({ client, room, editingMessage, onCancelEdit, replyingTo, onCancelReply, onFiles, uploading, uploadError }) {
   const [value, setValue] = useState('')
+  const [recordingBusy, setRecordingBusy] = useState(false)
+  const [recordingError, setRecordingError] = useState('')
   const [showEmoji, setShowEmoji] = useState(false)
 ```
+
+Now find every other use of the deleted `setUploading`/`setUploadError` setters in this file (in `handleStartRecording` and `handleSendRecording`) and rename them to the new recording-specific setters — `setUploadError(...)` becomes `setRecordingError(...)`, `setUploading(true)`/`setUploading(false)` become `setRecordingBusy(true)`/`setRecordingBusy(false)`, with arguments otherwise unchanged. Do this before continuing — the file must not reference `setUploading`/`setUploadError` anywhere once this step is done, since the props of the same read-only names (added below) carry no setter.
 
 Find:
 
@@ -108,7 +114,12 @@ Replace with:
 - [ ] **Step 3: Show upload progress as "file N of M"**
 
 `uploading` becomes either `false` or `{ current, total }` (produced by
-`Chat/index.jsx` in the next step) instead of a plain boolean. Find:
+`Chat/index.jsx` in the next step) instead of a plain boolean. This status
+line now has two independent sources — the file-batch upload (`uploading`/
+`uploadError` props) and local recording (`recordingBusy`/`recordingError`,
+from Step 1's correction) — either can be showing at a time, never both
+simultaneously in practice, but the line should reflect whichever is
+active. Find:
 
 ```jsx
       {(uploadError || uploading) && (
@@ -121,9 +132,9 @@ Replace with:
 Replace with:
 
 ```jsx
-      {(uploadError || uploading) && (
-        <div style={{ fontSize: '11px', color: uploadError ? '#ff4d4d' : 'var(--text-muted)', padding: '4px 2px 0', textAlign: 'right' }}>
-          {uploadError || (uploading.total > 1 ? `Загрузка файла ${uploading.current} из ${uploading.total}...` : 'Загрузка...')}
+      {(uploadError || uploading || recordingError || recordingBusy) && (
+        <div style={{ fontSize: '11px', color: (uploadError || recordingError) ? '#ff4d4d' : 'var(--text-muted)', padding: '4px 2px 0', textAlign: 'right' }}>
+          {uploadError || recordingError || (uploading && uploading.total > 1 ? `Загрузка файла ${uploading.current} из ${uploading.total}...` : 'Загрузка...')}
         </div>
       )}
 ```
