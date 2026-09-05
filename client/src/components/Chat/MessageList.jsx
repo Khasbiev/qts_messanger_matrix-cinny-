@@ -65,7 +65,12 @@ function extractMessages(client, room) {
     const rel = ev.getRelation()
     if (rel?.rel_type === 'm.replace') {
       const newContent = ev.getContent()['m.new_content']
-      if (newContent?.body != null) editsByTarget.set(rel.event_id, newContent.body)
+      if (newContent?.body != null) {
+        editsByTarget.set(rel.event_id, {
+          body: newContent.body,
+          mentionedUserIds: newContent['m.mentions']?.user_ids || [],
+        })
+      }
       continue
     }
 
@@ -92,6 +97,8 @@ function extractMessages(client, room) {
 
     const content = ev.getContent()
     if (!content?.body) continue
+
+    base.mentionedUserIds = content['m.mentions']?.user_ids || []
 
     const forwardedFrom = content['dev.qts.forwarded_from']
     if (forwardedFrom?.sender && forwardedFrom?.displayName) {
@@ -148,10 +155,18 @@ function extractMessages(client, room) {
         emoji, count: entry.count, reactedByMe: entry.reactedByMe, myEventId: entry.myEventId,
       }))
     }
-    const editedBody = editsByTarget.get(msg.id)
-    if (editedBody != null && msg.text != null) {
-      msg.text = editedBody
+    const edit = editsByTarget.get(msg.id)
+    if (edit != null && msg.text != null) {
+      msg.text = edit.body
       msg.edited = true
+      msg.mentionedUserIds = edit.mentionedUserIds
+    }
+    if (msg.mentionedUserIds?.length > 0) {
+      msg.mentions = msg.mentionedUserIds.map(uid => ({
+        userId: uid,
+        name: room.getMember(uid)?.name || uid.replace('@', '').split(':')[0],
+      }))
+      msg.mentionsMe = msg.mentionedUserIds.includes(me)
     }
     if (msg.isOwn) {
       msg.readBy = others.filter(m => room.hasUserReadEvent(m.userId, msg.id)).length

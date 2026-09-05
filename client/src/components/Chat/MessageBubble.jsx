@@ -1,9 +1,29 @@
 import { useState, useEffect, useRef } from 'react'
 import { IconDownload, IconLoader2, IconPlayerPlay, IconPlayerPause } from '@tabler/icons-react'
 import { resolveMediaUrl, toggleReaction, deleteMessage } from '../../lib/matrix'
+import { findMentionSpans } from '../../lib/mentions'
 import MessageActions from './MessageActions'
 import Modal from '../Modals/Modal'
 import ForwardModal from '../Modals/ForwardModal'
+
+function renderWithMentions(text, mentions) {
+  if (!mentions?.length) return text
+  const spans = findMentionSpans(text, mentions)
+  if (spans.length === 0) return text
+  const nodes = []
+  let cursor = 0
+  spans.forEach((span, i) => {
+    if (span.start > cursor) nodes.push(text.slice(cursor, span.start))
+    nodes.push(
+      <span key={i} style={{ color: 'var(--accent-orange)', fontWeight: 600 }}>
+        {text.slice(span.start, span.end)}
+      </span>
+    )
+    cursor = span.end
+  })
+  if (cursor < text.length) nodes.push(text.slice(cursor))
+  return nodes
+}
 
 function formatDuration(totalSeconds) {
   const m = Math.floor(totalSeconds / 60)
@@ -332,8 +352,9 @@ export default function MessageBubble({ message, roomId, onEdit, onReply, highli
 
         {/* Bubble */}
         <div style={{
-          background: isOwn ? '#0d3326' : 'var(--bg-card)',
+          background: message.mentionsMe ? 'rgba(255, 107, 53, 0.08)' : (isOwn ? '#0d3326' : 'var(--bg-card)'),
           border: '1px solid ' + (isOwn ? '#1c4535' : 'var(--border)'),
+          borderLeft: message.mentionsMe ? '3px solid var(--accent-orange)' : ('1px solid ' + (isOwn ? '#1c4535' : 'var(--border)')),
           borderRadius: isOwn ? '12px 12px 3px 12px' : '12px 12px 12px 3px',
           padding: '8px 12px',
         }}>
@@ -362,7 +383,7 @@ export default function MessageBubble({ message, roomId, onEdit, onReply, highli
 
           {text && (
             <p style={{ fontSize: '14px', color: 'var(--text-primary)', lineHeight: '1.5', margin: 0 }}>
-              {text}
+              {renderWithMentions(text, message.mentions)}
             </p>
           )}
 
