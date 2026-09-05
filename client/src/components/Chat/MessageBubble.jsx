@@ -3,6 +3,8 @@ import { IconDownload, IconLoader2, IconPlayerPlay, IconPlayerPause } from '@tab
 import { resolveMediaUrl, toggleReaction, deleteMessage } from '../../lib/matrix'
 import { findMentionSpans } from '../../lib/mentions'
 import { findUrlSpans } from '../../lib/linkify'
+import useResolvedMedia from '../../lib/useResolvedMedia'
+import LinkPreview from './LinkPreview'
 import MessageActions from './MessageActions'
 import Modal from '../Modals/Modal'
 import ForwardModal from '../Modals/ForwardModal'
@@ -46,24 +48,6 @@ function formatDuration(totalSeconds) {
   const m = Math.floor(totalSeconds / 60)
   const s = totalSeconds % 60
   return `${m}:${s.toString().padStart(2, '0')}`
-}
-
-function useResolvedMedia(mxcUrl) {
-  const [blobUrl, setBlobUrl] = useState(null)
-  useEffect(() => {
-    let cancelled = false
-    let url = null
-    resolveMediaUrl(mxcUrl).then(resolved => {
-      if (cancelled) { URL.revokeObjectURL(resolved); return }
-      url = resolved
-      setBlobUrl(resolved)
-    }).catch(() => {})
-    return () => {
-      cancelled = true
-      if (url) URL.revokeObjectURL(url)
-    }
-  }, [mxcUrl])
-  return blobUrl
 }
 
 function VoicePlayer({ mxcUrl, durationMs }) {
@@ -403,6 +387,12 @@ export default function MessageBubble({ message, roomId, onEdit, onReply, highli
             <p style={{ fontSize: '14px', color: 'var(--text-primary)', lineHeight: '1.5', margin: 0 }}>
               {renderMessageText(text, message.mentions, urlSpans)}
             </p>
+          )}
+
+          {urlSpans[0] && (
+            <div style={{ paddingTop: text ? '8px' : '0' }}>
+              <LinkPreview url={urlSpans[0].url} />
+            </div>
           )}
 
           {image && (

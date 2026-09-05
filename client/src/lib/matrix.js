@@ -250,6 +250,11 @@ export async function resolveMediaUrl(mxcUrl) {
   return URL.createObjectURL(blob)
 }
 
+export async function getLinkPreview(url) {
+  if (!_client) throw new Error('Not connected')
+  return _client.getUrlPreview(url, Date.now())
+}
+
 export function getOwnProfile() {
   if (!_client) throw new Error('Not connected')
   const user = _client.getUser(_client.getUserId())

@@ -30,6 +30,15 @@ enable_registration: true
 enable_registration_without_verification: true
 user_directory:
   search_all_users: true
+url_preview_enabled: true
+url_preview_ip_range_blacklist:
+  - "127.0.0.0/8"
+  - "10.0.0.0/8"
+  - "172.16.0.0/12"
+  - "192.168.0.0/16"
+  - "100.64.0.0/10"
+  - "::1/128"
+  - "fe80::/10"
 YAML
     fi
     docker rm -f "$CONTAINER" >/dev/null 2>&1 || true
