@@ -3,7 +3,7 @@ import {
   IconPaperclip, IconMoodSmile, IconSend,
   IconMicrophone, IconVideo, IconTrash, IconX,
 } from '@tabler/icons-react'
-import { sendMessage, uploadFile, uploadVoiceMessage, uploadVideoNote, editMessage, sendReply } from '../../lib/matrix'
+import { sendMessage, uploadVoiceMessage, uploadVideoNote, editMessage, sendReply } from '../../lib/matrix'
 import { startRecording } from '../../lib/mediaRecorder'
 import EmojiPicker from './EmojiPicker'
 import MentionAutocomplete from './MentionAutocomplete'
@@ -17,10 +17,8 @@ function formatTimer(ms) {
   return `${m}:${s.toString().padStart(2, '0')}`
 }
 
-export default function InputArea({ client, room, editingMessage, onCancelEdit, replyingTo, onCancelReply }) {
+export default function InputArea({ client, room, editingMessage, onCancelEdit, replyingTo, onCancelReply, onFiles, uploading, uploadError }) {
   const [value, setValue] = useState('')
-  const [uploading, setUploading] = useState(false)
-  const [uploadError, setUploadError] = useState('')
   const [showEmoji, setShowEmoji] = useState(false)
   const [mentionQuery, setMentionQuery] = useState(null)
   const [mentionStart, setMentionStart] = useState(0)
@@ -238,21 +236,6 @@ export default function InputArea({ client, room, editingMessage, onCancelEdit, 
     textareaRef.current?.focus()
   }
 
-  const handleFileChange = async (e) => {
-    const file = e.target.files?.[0]
-    e.target.value = ''
-    if (!file) return
-    setUploading(true)
-    setUploadError('')
-    try {
-      await uploadFile(room.roomId, file)
-    } catch (err) {
-      setUploadError(err.data?.error || err.message || 'Не удалось загрузить файл')
-    } finally {
-      setUploading(false)
-    }
-  }
-
   const handleStartRecording = async (kind) => {
     setUploadError('')
     try {
@@ -291,7 +274,13 @@ export default function InputArea({ client, room, editingMessage, onCancelEdit, 
 
   return (
     <div style={{ padding: '0 16px 16px', flexShrink: 0, position: 'relative' }}>
-      <input ref={fileInputRef} type="file" style={{ display: 'none' }} onChange={handleFileChange} />
+      <input
+        ref={fileInputRef}
+        type="file"
+        multiple
+        style={{ display: 'none' }}
+        onChange={e => { onFiles(e.target.files); e.target.value = '' }}
+      />
 
       {showEmoji && <EmojiPicker onPick={insertEmoji} onClose={() => setShowEmoji(false)} />}
 
@@ -387,7 +376,7 @@ export default function InputArea({ client, room, editingMessage, onCancelEdit, 
 
       {(uploadError || uploading) && (
         <div style={{ fontSize: '11px', color: uploadError ? '#ff4d4d' : 'var(--text-muted)', padding: '4px 2px 0', textAlign: 'right' }}>
-          {uploadError || 'Загрузка...'}
+          {uploadError || (uploading.total > 1 ? `Загрузка файла ${uploading.current} из ${uploading.total}...` : 'Загрузка...')}
         </div>
       )}
 
