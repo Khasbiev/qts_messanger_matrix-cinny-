@@ -44,3 +44,27 @@ export function buildMentionHtml(text, spans, escapeHtml) {
   html += escapeHtml(text.slice(cursor))
   return html
 }
+
+function unescapeHtml(str) {
+  return str
+    .replace(/&quot;/g, '"')
+    .replace(/&gt;/g, '>')
+    .replace(/&lt;/g, '<')
+    .replace(/&amp;/g, '&')
+}
+
+// Extracts {userId -> displayNameAtSendTime} from a formatted_body that
+// was built by buildMentionHtml, so the render path can fall back to the
+// name that was actually anchored in the text when a member's current
+// display name no longer matches (e.g. they renamed since sending).
+export function extractPillNames(formattedBody) {
+  const names = new Map()
+  if (!formattedBody) return names
+  const pattern = /<a href="https:\/\/matrix\.to\/#\/([^"]+)">([^<]*)<\/a>/g
+  let match
+  while ((match = pattern.exec(formattedBody))) {
+    const [, userId, escapedName] = match
+    if (!names.has(userId)) names.set(userId, unescapeHtml(escapedName))
+  }
+  return names
+}

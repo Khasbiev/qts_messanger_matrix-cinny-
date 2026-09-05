@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { RoomEvent, EventTimeline } from 'matrix-js-sdk'
 import { IconLoader2 } from '@tabler/icons-react'
 import MessageBubble from './MessageBubble'
+import { extractPillNames } from '../../lib/mentions'
 
 function formatFileSize(bytes) {
   if (!bytes) return ''
@@ -69,6 +70,7 @@ function extractMessages(client, room) {
         editsByTarget.set(rel.event_id, {
           body: newContent.body,
           mentionedUserIds: newContent['m.mentions']?.user_ids || [],
+          formattedBody: newContent.format === 'org.matrix.custom.html' ? newContent.formatted_body : null,
         })
       }
       continue
@@ -99,6 +101,7 @@ function extractMessages(client, room) {
     if (!content?.body) continue
 
     base.mentionedUserIds = content['m.mentions']?.user_ids || []
+    base.formattedBody = content.format === 'org.matrix.custom.html' ? content.formatted_body : null
 
     const forwardedFrom = content['dev.qts.forwarded_from']
     if (forwardedFrom?.sender && forwardedFrom?.displayName) {
@@ -160,12 +163,17 @@ function extractMessages(client, room) {
       msg.text = edit.body
       msg.edited = true
       msg.mentionedUserIds = edit.mentionedUserIds
+      msg.formattedBody = edit.formattedBody
     }
     if (msg.mentionedUserIds?.length > 0) {
-      msg.mentions = msg.mentionedUserIds.map(uid => ({
-        userId: uid,
-        name: room.getMember(uid)?.name || uid.replace('@', '').split(':')[0],
-      }))
+      const historicalNames = extractPillNames(msg.formattedBody)
+      msg.mentions = msg.mentionedUserIds.flatMap(uid => {
+        const current = room.getMember(uid)?.name || uid.replace('@', '').split(':')[0]
+        const historical = historicalNames.get(uid)
+        return historical && historical !== current
+          ? [{ userId: uid, name: historical }, { userId: uid, name: current }]
+          : [{ userId: uid, name: current }]
+      })
       msg.mentionsMe = msg.mentionedUserIds.includes(me)
     }
     if (msg.isOwn) {

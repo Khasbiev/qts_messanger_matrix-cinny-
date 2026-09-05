@@ -423,6 +423,9 @@ export async function forwardMessage(sourceRoomId, message, targetRoomIds) {
     if (!event) throw new Error('Исходное сообщение недоступно')
     content = { ...event.getContent() }
     delete content['m.relates_to']
+    delete content['m.mentions']
+    delete content['format']
+    delete content['formatted_body']
   }
   content['dev.qts.forwarded_from'] = forwardedFrom
 
