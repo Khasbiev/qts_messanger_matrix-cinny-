@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import Header from './Header'
 import MessageList from './MessageList'
 import InputArea from './InputArea'
@@ -9,6 +9,8 @@ export default function Chat({ client, room, navMode, onNav, onLeave, jumpToEven
   const [replyingTo, setReplyingTo] = useState(null)
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState('')
+  const [dragActive, setDragActive] = useState(false)
+  const dragCounterRef = useRef(0)
 
   const handleFiles = async (fileList) => {
     const files = Array.from(fileList || [])
@@ -44,15 +46,60 @@ export default function Chat({ client, room, navMode, onNav, onLeave, jumpToEven
     setReplyingTo(msg)
   }
 
+  const handleDragEnter = (e) => {
+    if (!e.dataTransfer.types.includes('Files')) return
+    e.preventDefault()
+    dragCounterRef.current++
+    setDragActive(true)
+  }
+  const handleDragOver = (e) => {
+    if (!e.dataTransfer.types.includes('Files')) return
+    e.preventDefault()
+  }
+  const handleDragLeave = (e) => {
+    if (!e.dataTransfer.types.includes('Files')) return
+    dragCounterRef.current--
+    if (dragCounterRef.current <= 0) {
+      dragCounterRef.current = 0
+      setDragActive(false)
+    }
+  }
+  const handleDrop = (e) => {
+    if (!e.dataTransfer.types.includes('Files')) return
+    e.preventDefault()
+    dragCounterRef.current = 0
+    setDragActive(false)
+    handleFiles(e.dataTransfer.files)
+  }
+
   return (
-    <div style={{
-      flex: 1,
-      display: 'flex',
-      flexDirection: 'column',
-      height: '100vh',
-      background: 'var(--bg-primary)',
-      minWidth: 0,
-    }}>
+    <div
+      onDragEnter={handleDragEnter}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+      style={{
+        flex: 1,
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100vh',
+        background: 'var(--bg-primary)',
+        minWidth: 0,
+        position: 'relative',
+      }}>
+      {dragActive && (
+        <div style={{
+          position: 'absolute', inset: 0, zIndex: 50,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          background: 'rgba(0, 229, 176, 0.08)',
+          border: '2px dashed var(--accent-teal)', borderRadius: '8px',
+          pointerEvents: 'none',
+        }}>
+          <span style={{ fontSize: '16px', fontWeight: 600, color: 'var(--accent-teal)' }}>
+            Отпустите файлы, чтобы отправить
+          </span>
+        </div>
+      )}
       <Header client={client} room={room} navMode={navMode} onNav={onNav} onLeave={onLeave} />
       <MessageList client={client} room={room} onEdit={handleEdit} onReply={handleReply} jumpToEventId={jumpToEventId} />
       <InputArea
