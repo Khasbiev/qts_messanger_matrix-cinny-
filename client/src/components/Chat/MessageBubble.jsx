@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useRef } from 'react'
 import { IconDownload, IconLoader2, IconPlayerPlay, IconPlayerPause } from '@tabler/icons-react'
 import { resolveMediaUrl, toggleReaction, deleteMessage } from '../../lib/matrix'
 import { findMentionSpans } from '../../lib/mentions'
@@ -9,9 +9,7 @@ import MessageActions from './MessageActions'
 import Modal from '../Modals/Modal'
 import ForwardModal from '../Modals/ForwardModal'
 
-function renderMessageText(text, mentions, urlSpans) {
-  const mentionSpans = mentions?.length ? findMentionSpans(text, mentions) : []
-  const linkSpans = urlSpans.filter(u => !mentionSpans.some(m => u.start < m.end && u.end > m.start))
+function renderMessageText(text, mentionSpans, linkSpans) {
   const spans = [...mentionSpans, ...linkSpans].sort((a, b) => a.start - b.start)
   if (spans.length === 0) return text
   const nodes = []
@@ -272,6 +270,8 @@ export default function MessageBubble({ message, roomId, onEdit, onReply, highli
 
   const { isOwn, sender, avatar, time, text, file, image, voice, roundVideo, reactions, readBy } = message
   const urlSpans = text ? findUrlSpans(text) : []
+  const mentionSpans = text && message.mentions?.length ? findMentionSpans(text, message.mentions) : []
+  const linkSpans = urlSpans.filter(u => !mentionSpans.some(m => u.start < m.end && u.end > m.start))
 
   const handleReact = async (emoji) => {
     try {
@@ -385,15 +385,11 @@ export default function MessageBubble({ message, roomId, onEdit, onReply, highli
 
           {text && (
             <p style={{ fontSize: '14px', color: 'var(--text-primary)', lineHeight: '1.5', margin: 0 }}>
-              {renderMessageText(text, message.mentions, urlSpans)}
+              {renderMessageText(text, mentionSpans, linkSpans)}
             </p>
           )}
 
-          {urlSpans[0] && (
-            <div style={{ paddingTop: text ? '8px' : '0' }}>
-              <LinkPreview url={urlSpans[0].url} />
-            </div>
-          )}
+          {linkSpans[0] && <LinkPreview url={linkSpans[0].url} spaced={!!text} />}
 
           {image && (
             <div style={{ paddingTop: text ? '8px' : '0' }}>

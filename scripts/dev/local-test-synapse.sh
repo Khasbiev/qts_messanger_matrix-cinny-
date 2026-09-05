@@ -39,7 +39,13 @@ url_preview_ip_range_blacklist:
   - "100.64.0.0/10"
   - "::1/128"
   - "fe80::/10"
+  - "fc00::/7"
+  - "2001:db8::/32"
+  - "ff00::/8"
+  - "fec0::/10"
 YAML
+    elif ! grep -q url_preview_enabled "$DATA_DIR/homeserver.yaml"; then
+      echo "Note: existing config predates url previews — run '$0 reset' then 'start' to regenerate." >&2
     fi
     docker rm -f "$CONTAINER" >/dev/null 2>&1 || true
     MSYS_NO_PATHCONV=1 docker run -d --name "$CONTAINER" -p "$PORT:8008" -v "$DATA_DIR:/data" "$IMAGE" >/dev/null

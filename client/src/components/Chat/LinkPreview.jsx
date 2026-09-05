@@ -7,7 +7,7 @@ function hostnameOf(url) {
   try { return new URL(url).hostname.replace(/^www\./, '') } catch { return url }
 }
 
-export default function LinkPreview({ url }) {
+export default function LinkPreview({ url, spaced }) {
   const [preview, setPreview] = useState(null)
   const [loaded, setLoaded] = useState(false)
 
@@ -41,6 +41,7 @@ export default function LinkPreview({ url }) {
         display: 'flex', gap: '10px', textDecoration: 'none',
         border: '1px solid var(--border)', borderRadius: '10px',
         padding: '8px', background: 'rgba(255,255,255,0.02)',
+        marginTop: spaced ? '8px' : '0',
       }}
     >
       {imageMxc && (
