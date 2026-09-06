@@ -1,23 +1,28 @@
 import { useState } from 'react'
-import { IconEye, IconEyeOff, IconLogin } from '@tabler/icons-react'
-import { login, startSync } from '../../lib/matrix'
+import { IconEye, IconEyeOff, IconLogin, IconUserPlus } from '@tabler/icons-react'
+import { login, register, startSync } from '../../lib/matrix'
+import { phoneToUsername } from '../../lib/phone'
 
 export default function LoginScreen({ onLogin }) {
+  const [mode, setMode] = useState('login')
   const [showPass, setShowPass] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [form, setForm] = useState({
-    homeserver: 'https://matrix.messanger.qts.dev',
-    username: '',
-    password: '',
-  })
+  const [form, setForm] = useState({ name: '', phone: '', password: '' })
+
+  const set = (key) => (val) => setForm(f => ({ ...f, [key]: val }))
+
+  const resolveUsername = (raw) => phoneToUsername(raw) ?? raw.trim()
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setLoading(true)
     setError('')
     try {
-      const client = await login(form.homeserver, form.username, form.password)
+      const username = resolveUsername(form.phone)
+      const client = mode === 'login'
+        ? await login(username, form.password)
+        : await register(form.name.trim(), form.phone, form.password)
       await startSync(client)
       onLogin(client)
     } catch (err) {
@@ -26,8 +31,8 @@ export default function LoginScreen({ onLogin }) {
     }
   }
 
-  const set = (key) => (val) => setForm(f => ({ ...f, [key]: val }))
-  const canSubmit = !loading && form.username.trim() && form.password
+  const canSubmit = !loading && form.phone.trim() && form.password
+    && (mode === 'login' || form.name.trim())
 
   return (
     <div style={{
@@ -53,15 +58,17 @@ export default function LoginScreen({ onLogin }) {
         </div>
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-          <Field label="Сервер" value={form.homeserver} onChange={set('homeserver')} placeholder="https://matrix.example.com" />
-          <Field label="Имя пользователя" value={form.username} onChange={set('username')} placeholder="имя_пользователя" autoComplete="username" />
+          {mode === 'register' && (
+            <Field label="Имя" value={form.name} onChange={set('name')} placeholder="Как вас зовут" autoComplete="name" />
+          )}
+          <Field label="Номер телефона" value={form.phone} onChange={set('phone')} placeholder="+7 999 123-45-67" autoComplete="tel" />
           <Field
             label="Пароль"
             value={form.password}
             onChange={set('password')}
             type={showPass ? 'text' : 'password'}
             placeholder="••••••••"
-            autoComplete="current-password"
+            autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
             suffix={
               <button type="button" onClick={() => setShowPass(s => !s)}
                 style={{ color: 'var(--text-muted)', display: 'flex', padding: '0 2px' }}
@@ -101,8 +108,16 @@ export default function LoginScreen({ onLogin }) {
             onMouseEnter={e => { if (canSubmit) e.currentTarget.style.opacity = '0.88' }}
             onMouseLeave={e => { e.currentTarget.style.opacity = '1' }}
           >
-            <IconLogin size={17} />
-            {loading ? 'Подключение...' : 'Войти'}
+            {mode === 'login' ? <IconLogin size={17} /> : <IconUserPlus size={17} />}
+            {loading ? 'Подключение...' : mode === 'login' ? 'Войти' : 'Зарегистрироваться'}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => { setMode(m => m === 'login' ? 'register' : 'login'); setError('') }}
+            style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: '13px', cursor: 'pointer', padding: '4px' }}
+          >
+            {mode === 'login' ? 'Нет аккаунта? Зарегистрироваться' : 'Уже есть аккаунт? Войти'}
           </button>
         </form>
       </div>

@@ -2,6 +2,8 @@ import { createClient, ClientEvent, RoomEvent } from 'matrix-js-sdk'
 import { findMentionSpans, buildMentionHtml } from './mentions'
 import { disablePush } from './push'
 
+const HOMESERVER = 'https://matrix.messanger.qts.dev'
+const AUTH_GATEWAY_URL = import.meta.env.VITE_AUTH_GATEWAY_URL
 const STORAGE_KEY = 'qts_matrix_session'
 
 let _client = null
@@ -10,8 +12,8 @@ export function getClient() {
   return _client
 }
 
-export async function login(homeserver, username, password) {
-  const temp = createClient({ baseUrl: homeserver })
+export async function login(username, password) {
+  const temp = createClient({ baseUrl: HOMESERVER })
   const resp = await temp.login('m.login.password', {
     user: username,
     password,
@@ -19,20 +21,34 @@ export async function login(homeserver, username, password) {
   })
 
   localStorage.setItem(STORAGE_KEY, JSON.stringify({
-    homeserver,
+    homeserver: HOMESERVER,
     accessToken: resp.access_token,
     userId: resp.user_id,
     deviceId: resp.device_id,
   }))
 
   _client = createClient({
-    baseUrl: homeserver,
+    baseUrl: HOMESERVER,
     accessToken: resp.access_token,
     userId: resp.user_id,
     deviceId: resp.device_id,
   })
 
   return _client
+}
+
+export async function register(name, phone, password) {
+  const resp = await fetch(`${AUTH_GATEWAY_URL}/register`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ phone, name, password }),
+  })
+  const data = await resp.json()
+  if (!resp.ok) throw new Error(data.error || 'Не удалось зарегистрироваться')
+
+  const client = await login(data.username, password)
+  await client.setDisplayName(name)
+  return client
 }
 
 export async function restoreSession() {
