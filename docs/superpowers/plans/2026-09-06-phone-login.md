@@ -381,11 +381,16 @@ export async function login(username, password) {
 export async function register(name, phone, password) {
   if (!AUTH_GATEWAY_URL) throw new Error('Регистрация временно недоступна')
 
-  const resp = await fetch(`${AUTH_GATEWAY_URL}/register`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ phone, name, password }),
-  })
+  let resp
+  try {
+    resp = await fetch(`${AUTH_GATEWAY_URL}/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone, name, password }),
+    })
+  } catch {
+    throw new Error('Сервер регистрации недоступен')
+  }
   if (!resp.ok) {
     const data = await resp.json().catch(() => ({}))
     throw new Error(data.error || 'Не удалось зарегистрироваться')
@@ -407,6 +412,32 @@ itself. This also fixes a real bug: the original version parsed
 deployed) threw an unreadable English `SyntaxError` instead of a Russian
 message — the `AUTH_GATEWAY_URL` guard and reordered `resp.ok` check
 above close that gap.
+
+**Second correction, found during live browser verification after the
+final review's fix wave landed** (the first time this feature was ever
+actually clicked through in a real browser, rather than exercised via
+curl): `fetch()` itself throws — not merely returns a non-ok response —
+when `auth-gateway` is unreachable (stopped, network blip). That surfaced
+a raw `TypeError: Failed to fetch` to the user. The `try`/`catch` around
+the `fetch` call above closes that gap, matching `auth-gateway`'s own
+`'Сервер регистрации недоступен'` wording for the equivalent failure on
+its side of the request chain.
+
+**Third correction, found the same way:** `matrix.js`'s `HOMESERVER`
+constant was a bare literal pointing at production, with the Сервер field
+gone and no way to override it. `auth-gateway`'s `SYNAPSE_URL` correctly
+points registration at the local test harness during development, but
+`login()` (called internally by `register()`) was still hardcoded to
+production — so a freshly registered account couldn't log in, since it
+didn't exist on that server. Every curl-based check in this feature's
+verification missed this because curl always talked to Synapse directly,
+never through the client's own `login()`. Fixed in `client/src/lib/matrix.js`:
+```js
+const HOMESERVER = import.meta.env.VITE_HOMESERVER_URL || 'https://matrix.messanger.qts.dev'
+```
+with `client/.env.example` documenting `VITE_HOMESERVER_URL` for local
+testing (set to the harness's `http://localhost:8008`), left unset in
+production.
 
 Note: `restoreSession()` (later in the same file) reads a stored
 `homeserver` from `localStorage` and passes it to `createClient` — leave

@@ -245,11 +245,16 @@ a package). If the typed value doesn't parse as a phone number,
 export async function register(name, username, password) {
   if (!AUTH_GATEWAY_URL) throw new Error('Регистрация временно недоступна')
 
-  const resp = await fetch(`${AUTH_GATEWAY_URL}/register`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ phone: username, name, password }),
-  })
+  let resp
+  try {
+    resp = await fetch(`${AUTH_GATEWAY_URL}/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone: username, name, password }),
+    })
+  } catch {
+    throw new Error('Сервер регистрации недоступен')
+  }
   if (!resp.ok) {
     const data = await resp.json().catch(() => ({}))
     throw new Error(data.error || 'Не удалось зарегистрироваться')
@@ -278,6 +283,34 @@ literal relative path `undefined/register`, get back a non-JSON response,
 and `resp.json()` would throw a raw `SyntaxError` that surfaces to the
 user as unreadable English text instead of a Russian message. The
 corrected version above closes both gaps.
+
+**Second correction, found during live browser verification after the
+final review's fix wave landed:** even with `AUTH_GATEWAY_URL` set, a
+`fetch()` call itself throws (not merely returns a non-ok response) when
+the target is unreachable — gateway process down, network blip, refused
+connection. That threw a raw `TypeError: Failed to fetch`, visible to the
+user verbatim, since it happens before the `resp.ok` check can run. The
+`fetch` call is now wrapped in its own `try`/`catch`, translating any
+network-level failure to `'Сервер регистрации недоступен'` — the same
+message `auth-gateway` itself uses when *it* can't reach Synapse, keeping
+the phrasing consistent across both hops of this request chain.
+
+**Third correction, found the same way:** `HOMESERVER` was a bare literal
+pointing at the production domain, with no way to override it for local
+testing now that the Сервер field is gone. Registering an account creates
+it on whatever Synapse `auth-gateway`'s `SYNAPSE_URL` points at (correctly
+the local test harness during development), but the subsequent `login()`
+call used the hardcoded production `HOMESERVER` — a mismatch invisible to
+every curl-based check in this feature's verification (curl always talked
+to Synapse directly, never through the client's own `login()`), and only
+surfaced once an actual browser exercised the real registration flow
+end-to-end. Fixed by making it overridable:
+```js
+const HOMESERVER = import.meta.env.VITE_HOMESERVER_URL || 'https://matrix.messanger.qts.dev'
+```
+`client/.env.example` documents `VITE_HOMESERVER_URL` for local testing
+against `scripts/dev/local-test-synapse.sh`, left unset in production so
+the hardcoded default still applies there.
 
 ### 4. Environment variables
 

@@ -2,7 +2,7 @@ import { createClient, ClientEvent, RoomEvent } from 'matrix-js-sdk'
 import { findMentionSpans, buildMentionHtml } from './mentions'
 import { disablePush } from './push'
 
-const HOMESERVER = 'https://matrix.messanger.qts.dev'
+const HOMESERVER = import.meta.env.VITE_HOMESERVER_URL || 'https://matrix.messanger.qts.dev'
 const AUTH_GATEWAY_URL = import.meta.env.VITE_AUTH_GATEWAY_URL
 const STORAGE_KEY = 'qts_matrix_session'
 
@@ -40,11 +40,16 @@ export async function login(username, password) {
 export async function register(name, phone, password) {
   if (!AUTH_GATEWAY_URL) throw new Error('Регистрация временно недоступна')
 
-  const resp = await fetch(`${AUTH_GATEWAY_URL}/register`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ phone, name, password }),
-  })
+  let resp
+  try {
+    resp = await fetch(`${AUTH_GATEWAY_URL}/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone, name, password }),
+    })
+  } catch {
+    throw new Error('Сервер регистрации недоступен')
+  }
   if (!resp.ok) {
     const data = await resp.json().catch(() => ({}))
     throw new Error(data.error || 'Не удалось зарегистрироваться')
