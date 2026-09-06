@@ -813,20 +813,47 @@ This is the complete flow: a real message triggers a real push that's
 really displayed, and clicking-equivalent (the `postMessage`/URL path
 already verified in Step 2) opens the right room.
 
+**Correction found while implementing this step:** `host.docker.internal`
+does not actually work against this project's local Synapse test harness
+on Windows + Docker Desktop, for two independent reasons discovered while
+first running this exact test:
+1. The container's OS-level resolver can resolve `host.docker.internal`,
+   but Synapse's own Twisted-based DNS resolver cannot — it's a genuinely
+   separate resolution path, and it fails outright on this hostname
+   regardless of the DNS record's existence.
+2. Once pointed at the literal resolved IP instead (Docker Desktop's host
+   gateway address, `192.168.65.254` at time of writing — re-derive it if
+   it's changed via `docker exec qts-test-synapse python3 -c "import
+   socket; print(socket.gethostbyname('host.docker.internal'))"`), Synapse's
+   default SSRF `ip_range_blacklist` blocks the entire private IP space by
+   default, including that address — the pusher HTTP call gets rejected
+   with `SynapseError 403: IP address blocked` before ever reaching the
+   gateway.
+
+Both are real, one-time local-environment setup steps, not application
+bugs — Steps 2-3 below fold them in.
+
 Setup:
 1. Confirm Task 1's gateway is running and reachable.
 2. Since Synapse (from `scripts/dev/local-test-synapse.sh`) runs inside
    Docker, update `client/.env`'s `VITE_PUSH_GATEWAY_NOTIFY_URL` to
-   `http://host.docker.internal:4000` (NOT `localhost` — the Dockerized
-   Synapse container can't resolve `localhost` as this host machine).
-   Restart the client dev server if it caches env vars at startup (Vite
-   does — a restart is needed after editing `.env`).
-3. In Settings, if `tester1` already enabled push against the old
-   (`localhost`) notify URL from Task 2's verification, toggle it off and
-   back on now, so the pusher re-registers with the corrected
-   `host.docker.internal` URL.
-4. Log in as `tester2` (a second browser context/tab) in a room shared
-   with `tester1`.
+   `http://<docker-host-ip>:4000` — the literal IP from the correction
+   above (NOT `host.docker.internal`, NOT `localhost`). Restart the client
+   dev server after editing `.env` (Vite doesn't hot-reload env changes).
+3. Add `ip_range_whitelist: ["<docker-host-ip>/32"]` to
+   `.local-test-synapse/data/homeserver.yaml` (this file is gitignored,
+   generated/managed by `scripts/dev/local-test-synapse.sh`, and that
+   script's own header already documents it as "Never touches production"
+   — this is a local-test-only config change, not one of the
+   plan-excluded production files), then `docker restart qts-test-synapse`
+   to pick it up.
+4. In Settings, if `tester1` already enabled push against a stale notify
+   URL from earlier testing, toggle it off and back on now, so the pusher
+   re-registers with the corrected URL — confirm via
+   `GET /_matrix/client/v3/pushers` that the registered `data.url` matches.
+5. Log in as `tester2` (a second, storage-isolated browser context — not
+   just a second tab, which would share `tester1`'s session/localStorage)
+   in a room shared with `tester1`.
 
 Test:
 1. As `tester2`, send a message in the shared room.
