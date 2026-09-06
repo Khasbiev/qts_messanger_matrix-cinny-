@@ -21,6 +21,18 @@ export default function App() {
   }, [])
 
   useEffect(() => {
+    const preventStrayFileDrop = (e) => {
+      if (e.dataTransfer?.types?.includes('Files')) e.preventDefault()
+    }
+    window.addEventListener('dragover', preventStrayFileDrop)
+    window.addEventListener('drop', preventStrayFileDrop)
+    return () => {
+      window.removeEventListener('dragover', preventStrayFileDrop)
+      window.removeEventListener('drop', preventStrayFileDrop)
+    }
+  }, [])
+
+  useEffect(() => {
     restoreSession().then(async (c) => {
       if (c) {
         try {

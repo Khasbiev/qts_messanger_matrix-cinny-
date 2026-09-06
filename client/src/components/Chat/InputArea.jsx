@@ -17,7 +17,7 @@ function formatTimer(ms) {
   return `${m}:${s.toString().padStart(2, '0')}`
 }
 
-export default function InputArea({ client, room, editingMessage, onCancelEdit, replyingTo, onCancelReply, onFiles, uploading, uploadError }) {
+export default function InputArea({ client, room, editingMessage, onCancelEdit, replyingTo, onCancelReply, onFiles, uploading, uploadError, onDismissUploadError }) {
   const [value, setValue] = useState('')
   const [showEmoji, setShowEmoji] = useState(false)
   const [recordingBusy, setRecordingBusy] = useState(false)
@@ -240,6 +240,7 @@ export default function InputArea({ client, room, editingMessage, onCancelEdit, 
 
   const handleStartRecording = async (kind) => {
     setRecordingError('')
+    onDismissUploadError()
     try {
       const controller = await startRecording(kind)
       setRecording({ kind, controller, startedAt: Date.now() })
@@ -281,7 +282,7 @@ export default function InputArea({ client, room, editingMessage, onCancelEdit, 
         type="file"
         multiple
         style={{ display: 'none' }}
-        onChange={e => { onFiles(e.target.files); e.target.value = '' }}
+        onChange={e => { const files = Array.from(e.target.files); e.target.value = ''; onFiles(files) }}
       />
 
       {showEmoji && <EmojiPicker onPick={insertEmoji} onClose={() => setShowEmoji(false)} />}

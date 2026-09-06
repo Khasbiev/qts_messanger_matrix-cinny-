@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import Header from './Header'
 import MessageList from './MessageList'
 import InputArea from './InputArea'
@@ -12,11 +12,12 @@ export default function Chat({ client, room, navMode, onNav, onLeave, jumpToEven
   const [dragActive, setDragActive] = useState(false)
   const dragCounterRef = useRef(0)
 
-  const handleFiles = async (fileList) => {
-    const files = Array.from(fileList || [])
-    if (files.length === 0) return
+  const uploadChainRef = useRef(Promise.resolve())
+
+  const runUploadBatch = async (files) => {
     setUploadError('')
     let failed = 0
+    let lastErrorMessage = ''
     for (let i = 0; i < files.length; i++) {
       setUploading({ current: i + 1, total: files.length })
       try {
@@ -24,16 +25,23 @@ export default function Chat({ client, room, navMode, onNav, onLeave, jumpToEven
       } catch (err) {
         console.error('Upload failed:', err)
         failed++
+        lastErrorMessage = err.data?.error || err.message || ''
       }
     }
     setUploading(false)
     if (failed > 0) {
       setUploadError(
         files.length === 1
-          ? 'Не удалось загрузить файл'
+          ? (lastErrorMessage || 'Не удалось загрузить файл')
           : `Не удалось загрузить ${failed} из ${files.length} файлов`
       )
     }
+  }
+
+  const handleFiles = (fileList) => {
+    const files = Array.from(fileList || [])
+    if (files.length === 0) return
+    uploadChainRef.current = uploadChainRef.current.then(() => runUploadBatch(files))
   }
 
   const handleEdit = (msg) => {
@@ -71,6 +79,19 @@ export default function Chat({ client, room, navMode, onNav, onLeave, jumpToEven
     setDragActive(false)
     handleFiles(e.dataTransfer.files)
   }
+
+  useEffect(() => {
+    const resetDragState = () => {
+      dragCounterRef.current = 0
+      setDragActive(false)
+    }
+    window.addEventListener('drop', resetDragState)
+    window.addEventListener('dragend', resetDragState)
+    return () => {
+      window.removeEventListener('drop', resetDragState)
+      window.removeEventListener('dragend', resetDragState)
+    }
+  }, [])
 
   return (
     <div
@@ -112,6 +133,7 @@ export default function Chat({ client, room, navMode, onNav, onLeave, jumpToEven
         onFiles={handleFiles}
         uploading={uploading}
         uploadError={uploadError}
+        onDismissUploadError={() => setUploadError('')}
       />
     </div>
   )
