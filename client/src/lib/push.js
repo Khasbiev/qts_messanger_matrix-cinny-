@@ -38,22 +38,28 @@ export async function enablePush(client) {
   })
   const pushkey = getOrCreatePushKey()
 
-  await fetch(`${GATEWAY_URL}/register`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ pushkey, subscription: subscription.toJSON() }),
-  })
+  try {
+    const registerResp = await fetch(`${GATEWAY_URL}/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pushkey, subscription: subscription.toJSON() }),
+    })
+    if (!registerResp.ok) throw new Error('Не удалось зарегистрировать подписку на сервере уведомлений')
 
-  await client.setPusher({
-    pushkey,
-    kind: 'http',
-    app_id: APP_ID,
-    app_display_name: 'qts.dev messenger (веб)',
-    device_display_name: navigator.userAgent.slice(0, 60),
-    lang: 'ru',
-    data: { url: `${GATEWAY_NOTIFY_URL}/_matrix/push/v1/notify` },
-    append: false,
-  })
+    await client.setPusher({
+      pushkey,
+      kind: 'http',
+      app_id: APP_ID,
+      app_display_name: 'qts.dev messenger (веб)',
+      device_display_name: navigator.userAgent.slice(0, 60),
+      lang: 'ru',
+      data: { url: `${GATEWAY_NOTIFY_URL}/_matrix/push/v1/notify` },
+      append: false,
+    })
+  } catch (err) {
+    await subscription.unsubscribe().catch(() => {})
+    throw err
+  }
 }
 
 export async function disablePush(client) {
