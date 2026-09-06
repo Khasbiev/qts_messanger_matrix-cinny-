@@ -20,7 +20,7 @@ function MenuItem({ onClick, children, danger }) {
 
 export default function MessageContextMenu({ position, onClose, onReact, onReply, onForward, onCopy, onEdit, onDeleteClick }) {
   const ref = useRef(null)
-  const [style, setStyle] = useState({ top: position.y, left: position.x, visibility: 'hidden' })
+  const [style, setStyle] = useState({ top: 0, left: 0, visibility: 'hidden' })
 
   useLayoutEffect(() => {
     const el = ref.current
@@ -36,9 +36,11 @@ export default function MessageContextMenu({ position, onClose, onReact, onReply
     const onKeyDown = (e) => { if (e.key === 'Escape') onClose() }
     document.addEventListener('mousedown', onClickOutside)
     window.addEventListener('keydown', onKeyDown)
+    document.addEventListener('scroll', onClose, true)
     return () => {
       document.removeEventListener('mousedown', onClickOutside)
       window.removeEventListener('keydown', onKeyDown)
+      document.removeEventListener('scroll', onClose, true)
     }
   }, [onClose])
 
@@ -47,6 +49,7 @@ export default function MessageContextMenu({ position, onClose, onReact, onReply
   return (
     <div
       ref={ref}
+      onContextMenu={e => e.preventDefault()}
       style={{
         position: 'fixed', zIndex: 200, ...style,
         background: 'var(--bg-surface)', border: '1px solid var(--border)',

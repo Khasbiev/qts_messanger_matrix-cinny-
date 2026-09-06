@@ -293,6 +293,7 @@ export default function MessageBubble({ message, roomId, onEdit, onReply, highli
   }
 
   const handleContextMenu = (e) => {
+    if (e.target.closest('a')) return
     e.preventDefault()
     setContextMenu({ x: e.clientX, y: e.clientY })
   }
