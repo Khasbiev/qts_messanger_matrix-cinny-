@@ -38,17 +38,20 @@ export async function login(username, password) {
 }
 
 export async function register(name, phone, password) {
+  if (!AUTH_GATEWAY_URL) throw new Error('Регистрация временно недоступна')
+
   const resp = await fetch(`${AUTH_GATEWAY_URL}/register`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ phone, name, password }),
   })
-  const data = await resp.json()
-  if (!resp.ok) throw new Error(data.error || 'Не удалось зарегистрироваться')
+  if (!resp.ok) {
+    const data = await resp.json().catch(() => ({}))
+    throw new Error(data.error || 'Не удалось зарегистрироваться')
+  }
+  const { username } = await resp.json()
 
-  const client = await login(data.username, password)
-  await client.setDisplayName(name)
-  return client
+  return login(username, password)
 }
 
 export async function restoreSession() {
@@ -79,12 +82,19 @@ export function startSync(client) {
   })
 }
 
-// There is no invite-accept UI anywhere in this app, and registration is
-// already invite-only/admin-controlled (small trusted deployment) — so an
-// unjoined invite is never a feature, only a stuck room nobody can see.
-// Without this, starting a new DM/channel from either side leaves the
-// other person invited-but-never-joined: they see nothing, and the two
-// users end up writing into two different rooms without knowing it.
+// There is no invite-accept UI anywhere in this app, so auto-joining is the
+// only way an invited user ever sees the room. Without this, starting a new
+// DM/channel from either side leaves the other person invited-but-never
+// -joined: they see nothing, and the two users end up writing into two
+// different rooms without knowing it.
+//
+// NOTE: this comment previously justified auto-join by registration being
+// invite-only/admin-controlled. That's no longer true as of the phone-login
+// feature (self-service registration via auth-gateway) -- any registered
+// account can now invite, and thus auto-force-join, any other user into a
+// room. The auto-join behavior itself is unchanged and still required for
+// normal use; the abuse angle this opens up is a follow-up hardening
+// concern, not something addressed by this change.
 function autoJoinInvites(client) {
   for (const room of client.getRooms()) {
     if (room.getMyMembership() === 'invite') {

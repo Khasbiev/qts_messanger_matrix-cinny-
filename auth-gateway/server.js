@@ -37,7 +37,7 @@ app.post('/register', async (req, res) => {
     const regResp = await fetch(`${SYNAPSE_URL}/_synapse/admin/v1/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ nonce, username, password, admin: false, mac }),
+      body: JSON.stringify({ nonce, username, password, admin: false, mac, displayname: name }),
     })
     const regData = await regResp.json()
 
