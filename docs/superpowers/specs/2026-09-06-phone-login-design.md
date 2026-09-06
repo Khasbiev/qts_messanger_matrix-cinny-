@@ -90,9 +90,9 @@ Own `package.json` (`express`, `dotenv`, `crypto` is a Node builtin),
 export function phoneToUsername(phone) {
   const digits = String(phone).replace(/\D/g, '')
   if (digits.length === 11 && (digits[0] === '7' || digits[0] === '8')) {
-    return `7${digits.slice(1)}`
+    return `u7${digits.slice(1)}`
   }
-  if (digits.length === 10) return `7${digits}`
+  if (digits.length === 10) return `u7${digits}`
   return null
 }
 ```
@@ -102,6 +102,18 @@ Returns `null` for anything that isn't a recognizable RU-shaped number
 10-digit input); the route rejects with 400 in that case. A leading `8`
 (the historic Russian trunk prefix) is normalized to `7`, matching how
 Russians actually dictate/type their own numbers.
+
+**Correction found during implementation:** the original design of this
+function returned a purely-numeric string (e.g. `79161234567`) to use
+directly as the Matrix username. Synapse rejects that outright —
+`M_INVALID_USERNAME: "Numeric user IDs are reserved for guest users."` —
+a hard architectural constraint (guest accounts get sequential numeric
+IDs, so regular accounts may not have a fully-numeric localpart), not a
+configuration option. The fix is the `u` prefix shown above: it makes
+every generated username start with a letter while staying entirely
+deterministic from the phone number, so the mapping is still trivially
+invertible and stable. `@u79161234567:matrix.messanger.qts.dev` is what
+the resulting Matrix user ID looks like.
 
 **`server.js`** — one route:
 
