@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
-import { IconCamera, IconLoader2 } from '@tabler/icons-react'
+import { IconCamera, IconLoader2, IconBell, IconBellOff } from '@tabler/icons-react'
 import Modal from './Modal'
 import { getOwnProfile, updateDisplayName, updateAvatar, resolveMediaUrl } from '../../lib/matrix'
 import { colorFor } from '../../lib/avatarColor'
+import { isPushSubscribed, enablePush, disablePush } from '../../lib/push'
 
 export default function SettingsModal({ client, onClose }) {
   const userId = client?.getUserId() || ''
@@ -17,6 +18,9 @@ export default function SettingsModal({ client, onClose }) {
   const [nameSaved, setNameSaved] = useState(false)
   const [uploadingAvatar, setUploadingAvatar] = useState(false)
   const [error, setError] = useState('')
+  const [pushSubscribed, setPushSubscribed] = useState(false)
+  const [pushBusy, setPushBusy] = useState(false)
+  const [pushError, setPushError] = useState('')
   const fileInputRef = useRef(null)
 
   useEffect(() => {
@@ -34,6 +38,10 @@ export default function SettingsModal({ client, onClose }) {
       if (url) URL.revokeObjectURL(url)
     }
   }, [profile.avatarMxcUrl])
+
+  useEffect(() => {
+    isPushSubscribed().then(setPushSubscribed).catch(() => {})
+  }, [])
 
   const handleAvatarClick = () => fileInputRef.current?.click()
 
@@ -67,6 +75,24 @@ export default function SettingsModal({ client, onClose }) {
       setError(err.data?.error || err.message || 'Не удалось сохранить имя')
     } finally {
       setSavingName(false)
+    }
+  }
+
+  const handleTogglePush = async () => {
+    setPushBusy(true)
+    setPushError('')
+    try {
+      if (pushSubscribed) {
+        await disablePush(client)
+        setPushSubscribed(false)
+      } else {
+        await enablePush(client)
+        setPushSubscribed(true)
+      }
+    } catch (err) {
+      setPushError(err.message || 'Не удалось изменить настройку уведомлений')
+    } finally {
+      setPushBusy(false)
     }
   }
 
@@ -130,6 +156,25 @@ export default function SettingsModal({ client, onClose }) {
         <Field label="Matrix ID" value={userId} />
         <Field label="Сервер" value={homeserver} />
         <Field label="Устройство" value={deviceId} />
+
+        <div>
+          <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            Уведомления
+          </div>
+          <button
+            onClick={handleTogglePush}
+            disabled={pushBusy}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '8px', width: '100%',
+              fontSize: '14px', color: 'var(--text-primary)', background: 'var(--bg-card)',
+              border: '1px solid var(--border)', borderRadius: '7px', padding: '9px 12px',
+            }}
+          >
+            {pushBusy ? <IconLoader2 size={16} className="spin" /> : (pushSubscribed ? <IconBell size={16} color="var(--accent-teal)" /> : <IconBellOff size={16} />)}
+            {pushSubscribed ? 'Push-уведомления включены' : 'Включить push-уведомления'}
+          </button>
+          {pushError && <div style={{ fontSize: '11px', color: '#ff4d4d', marginTop: '4px' }}>{pushError}</div>}
+        </div>
 
         {error && <div style={{ fontSize: '12px', color: '#ff4d4d' }}>{error}</div>}
       </div>
