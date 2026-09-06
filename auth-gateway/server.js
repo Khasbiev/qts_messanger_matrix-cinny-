@@ -18,7 +18,7 @@ app.use(express.json())
 app.post('/register', async (req, res) => {
   const { phone, name, password } = req.body || {}
   if (!phone || !name || !password) {
-    return res.status(400).json({ error: 'phone, name and password required' })
+    return res.status(400).json({ error: 'Телефон, имя и пароль обязательны' })
   }
   const username = phoneToUsername(phone)
   if (!username) {
