@@ -7,6 +7,7 @@ self.addEventListener('push', (event) => {
     icon: '/icon-192.png',
     badge: '/icon-192.png',
     tag: payload.roomId || undefined,
+    renotify: true,
     data: { roomId: payload.roomId, eventId: payload.eventId },
   }
   event.waitUntil(self.registration.showNotification(title, options))

@@ -364,6 +364,30 @@ convention elsewhere (e.g. search's jump-to-message).
   normal app view (no error toast) — this mirrors the existing
   jump-to-message fallback behavior already established in this app.
 
+## Security posture (v1)
+
+The gateway is unauthenticated by design (matching how Synapse pusher URLs
+work generally — no shared secret is exchanged), so its endpoints are
+narrowed rather than locked down:
+
+- `POST /register` validates `subscription.endpoint` against an allowlist
+  of known browser push-service origins (FCM, Mozilla autopush, Windows
+  WNS, Apple Web Push) before storing it. Without this, a forged
+  `endpoint` value would make `webpush.sendNotification` deliver an
+  attacker-controlled HTTP request on `/_matrix/push/v1/notify` — an SSRF
+  vector via this service. This is the cheap mitigation for v1; a
+  per-user registration secret is future work if the gateway is ever
+  exposed beyond a trusted network.
+- `/_matrix/push/v1/notify` still accepts any `pushkey` a caller names,
+  since Synapse itself is the only expected caller in this deployment and
+  authenticating that relationship (mTLS, shared secret) is deployment
+  configuration, deferred with the rest of production wiring.
+- Message bodies delivered to the browser's push service are capped at
+  200 characters — Web Push payloads have a hard size ceiling
+  (~4KB after encryption overhead) enforced by the push services
+  themselves; oversized payloads are silently dropped rather than erroring,
+  so truncating client-side is the only way to guarantee delivery.
+
 ## Testing
 
 No automated test framework exists in `client/`, and none is being

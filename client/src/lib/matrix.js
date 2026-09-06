@@ -1,5 +1,6 @@
 import { createClient, ClientEvent, RoomEvent } from 'matrix-js-sdk'
 import { findMentionSpans, buildMentionHtml } from './mentions'
+import { disablePush } from './push'
 
 const STORAGE_KEY = 'qts_matrix_session'
 
@@ -113,6 +114,7 @@ async function joinAndRegisterDirect(client, room) {
 
 export async function logout() {
   if (_client) {
+    try { await disablePush(_client) } catch { /* subscription may already be gone */ }
     try { await _client.logout() } catch { /* token may already be invalid */ }
     _client.stopClient()
     _client = null
