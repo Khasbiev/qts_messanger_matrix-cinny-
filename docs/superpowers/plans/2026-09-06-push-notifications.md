@@ -30,6 +30,19 @@
 - Create: `push-gateway/scripts/generate-vapid-keys.js`
 - Test: manual verification via `curl` (no automated test framework)
 
+**Correction found during Task 2's implementation:** this task's original
+steps below don't add CORS headers. `curl` never hits this gap (nothing
+about `curl` enforces same-origin policy), but a real browser calling
+`POST /register`/`POST /unregister` from `client/`'s origin (a different
+port, e.g. `http://localhost:5173` → `http://localhost:4000`) is a
+cross-origin request, and Express sends no
+`Access-Control-Allow-Origin` header by default — the browser blocks the
+response from reaching the calling JavaScript. `POST /_matrix/push/v1/notify`
+doesn't need this (Synapse calls it server-to-server, which browser CORS
+never applies to), but applying `cors()` to the whole app is simpler than
+scoping it to two routes and this gateway has no cookies/auth for a
+permissive CORS policy to leak. Step 4 below includes the fix.
+
 **Interfaces:**
 - Produces: a running HTTP server (default port `4000`, overridable via `PORT`) exposing `POST /register` (`{pushkey, subscription}` → stores it), `POST /unregister` (`{pushkey}` → removes it), `POST /_matrix/push/v1/notify` (the Matrix Push Gateway API — Task 2/3 will point a Matrix pusher's `data.url` at `<this>/_matrix/push/v1/notify`), and `GET /health`.
 - Produces (`store.js`): `setSubscription(pushkey, subscription)`, `getSubscription(pushkey)`, `removeSubscription(pushkey)` — a JSON-file-backed key/value store at `push-gateway/data/subscriptions.json`.
@@ -162,11 +175,18 @@ This `.env` file is gitignored — never commit it.
 
 - [ ] **Step 4: Create the server**
 
-Create `push-gateway/server.js`:
+Create `push-gateway/server.js`. This includes the CORS fix noted above
+(`cors` import + `app.use(cors())`) — if you're implementing this task
+fresh, this is simply what to write; if you're fixing an already-committed
+version that's missing it, add the `cors` import line and the
+`app.use(cors())` line to the existing file and add `"cors": "^2.8.5"` to
+`push-gateway/package.json`'s `dependencies` (Step 1), then `npm install`
+again from `push-gateway/` to pick it up:
 
 ```js
 import 'dotenv/config'
 import express from 'express'
+import cors from 'cors'
 import webpush from 'web-push'
 import { setSubscription, getSubscription, removeSubscription } from './store.js'
 
@@ -180,6 +200,7 @@ if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) {
 webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY)
 
 const app = express()
+app.use(cors())
 app.use(express.json())
 
 app.post('/register', (req, res) => {
