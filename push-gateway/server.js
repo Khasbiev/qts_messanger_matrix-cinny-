@@ -1,5 +1,6 @@
 import 'dotenv/config'
 import express from 'express'
+import cors from 'cors'
 import webpush from 'web-push'
 import { setSubscription, getSubscription, removeSubscription } from './store.js'
 
@@ -13,6 +14,7 @@ if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) {
 webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY)
 
 const app = express()
+app.use(cors())
 app.use(express.json())
 
 app.post('/register', (req, res) => {
