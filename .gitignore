@@ -224,6 +224,7 @@ synapse/data/
 synapse/homeserver.yaml
 nginx/certbot/
 .local-test-synapse/
+push-gateway/data/
 
 # Node
 node_modules/

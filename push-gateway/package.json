@@ -1,0 +1,15 @@
+{
+  "name": "qts-push-gateway",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "generate-vapid-keys": "node scripts/generate-vapid-keys.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "web-push": "^3.6.7",
+    "dotenv": "^16.4.5"
+  }
+}
