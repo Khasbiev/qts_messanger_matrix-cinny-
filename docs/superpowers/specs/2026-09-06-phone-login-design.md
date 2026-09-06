@@ -70,10 +70,19 @@ Explicitly out of scope:
   separate, later decision (same split already used for
   `push-gateway`).
 - Password reset / "forgot password" flow — not part of this iteration.
-- Rate-limiting or abuse protection on `auth-gateway` beyond what Synapse
-  itself already enforces (`rc_registration` in `homeserver.yaml`) — fine
-  at this project's demo scale, called out explicitly rather than
-  silently skipped.
+- Rate-limiting or abuse protection on `auth-gateway`'s `/register` route.
+  **Correction found during final review:** this route is not covered by
+  Synapse's `rc_registration` limiter at all — that limiter keys off the
+  caller's IP address, and Synapse's own admin registration handler
+  (`register_user(..., by_admin=True)`) never passes one, so the check is
+  skipped unconditionally for every request this gateway makes. There is
+  no rate limit on this path, full stop. Accepted anyway at this
+  project's demo scale, but recorded accurately rather than behind an
+  incorrect sense of an existing safety net. Worth revisiting before any
+  real deployment: `/register` currently accepts CORS requests from any
+  origin (`auth-gateway/server.js`'s `app.use(cors())`), so publishing it
+  turns an `enable_registration: false` homeserver into an effectively
+  open-signup one.
 - Changing how `tester1`/`tester2` or any other existing account works.
 
 ## Design
@@ -157,7 +166,7 @@ app.post('/register', async (req, res) => {
     const regResp = await fetch(`${SYNAPSE_URL}/_synapse/admin/v1/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ nonce, username, password, admin: false, mac }),
+      body: JSON.stringify({ nonce, username, password, admin: false, mac, displayname: name }),
     })
     const regData = await regResp.json()
 
@@ -182,12 +191,17 @@ app.listen(PORT, () => {
 })
 ```
 
-`name` (the display name) is accepted here for validation symmetry but
-deliberately **not** sent to Synapse by this service — the Admin
-register API has no display-name parameter, and threading it through a
-second admin call here would need the account's own access token anyway.
-It's simpler and no less correct for the client to set it after login
-(see §3), using the same access token it already has.
+**Correction found during final review:** the original design of this
+service deliberately withheld `name` from the Synapse call, on the belief
+that the Admin register API has no display-name parameter. That belief
+was wrong — Synapse's `UserRegisterServlet.on_POST` reads an optional
+`displayname` field from the request body and passes it straight through
+as `default_display_name`, and it is not part of the HMAC computation
+(the shared-secret protocol's `mac` only ever covers `nonce`, `username`,
+`password`, and the admin flag). The corrected route sends
+`displayname: name` alongside the other fields in the `POST` body shown
+above, making the display name atomic with account creation. This also
+removes a client-side follow-up call and its failure mode (see §3).
 
 ### 2. `LoginScreen.jsx` — Вход/Регистрация toggle
 
@@ -229,24 +243,41 @@ a package). If the typed value doesn't parse as a phone number,
 
 ```js
 export async function register(name, username, password) {
+  if (!AUTH_GATEWAY_URL) throw new Error('Регистрация временно недоступна')
+
   const resp = await fetch(`${AUTH_GATEWAY_URL}/register`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ phone: username, name, password }),
   })
-  const data = await resp.json()
-  if (!resp.ok) throw new Error(data.error || 'Не удалось зарегистрироваться')
+  if (!resp.ok) {
+    const data = await resp.json().catch(() => ({}))
+    throw new Error(data.error || 'Не удалось зарегистрироваться')
+  }
+  const { username: registeredUsername } = await resp.json()
 
-  const client = await login(data.username, password)
-  await client.setDisplayName(name)
-  return client
+  return login(registeredUsername, password)
 }
 ```
 
 `register()` deliberately re-derives the final `username` from the
-gateway's response (`data.username`) rather than reusing whatever the
-caller passed in, since the gateway is the single source of truth for the
-normalized form actually stored in Synapse.
+gateway's response rather than reusing whatever the caller passed in,
+since the gateway is the single source of truth for the normalized form
+actually stored in Synapse. The display name is now set atomically at
+registration time by `auth-gateway` itself (§1's corrected `server.js`),
+so there is no follow-up `setDisplayName` call here to fail independently
+of the registration/login itself.
+
+**Correction found during final review:** the original version of this
+function called `resp.json()` unconditionally before checking `resp.ok`,
+and had no guard for `AUTH_GATEWAY_URL` being unset. Since `auth-gateway`
+deployment is deferred (see Scope), an unset `VITE_AUTH_GATEWAY_URL` is
+the actual default state in any environment that hasn't set up the
+gateway yet — without the guard above, `register()` would fetch the
+literal relative path `undefined/register`, get back a non-JSON response,
+and `resp.json()` would throw a raw `SyntaxError` that surfaces to the
+user as unreadable English text instead of a Russian message. The
+corrected version above closes both gaps.
 
 ### 4. Environment variables
 

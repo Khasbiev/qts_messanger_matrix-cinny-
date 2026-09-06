@@ -175,7 +175,7 @@ app.post('/register', async (req, res) => {
     const regResp = await fetch(`${SYNAPSE_URL}/_synapse/admin/v1/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ nonce, username, password, admin: false, mac }),
+      body: JSON.stringify({ nonce, username, password, admin: false, mac, displayname: name }),
     })
     const regData = await regResp.json()
 
@@ -379,19 +379,34 @@ export async function login(username, password) {
 }
 
 export async function register(name, phone, password) {
+  if (!AUTH_GATEWAY_URL) throw new Error('Регистрация временно недоступна')
+
   const resp = await fetch(`${AUTH_GATEWAY_URL}/register`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ phone, name, password }),
   })
-  const data = await resp.json()
-  if (!resp.ok) throw new Error(data.error || 'Не удалось зарегистрироваться')
+  if (!resp.ok) {
+    const data = await resp.json().catch(() => ({}))
+    throw new Error(data.error || 'Не удалось зарегистрироваться')
+  }
+  const { username } = await resp.json()
 
-  const client = await login(data.username, password)
-  await client.setDisplayName(name)
-  return client
+  return login(username, password)
 }
 ```
+
+**Correction found during final review:** the display name is now set
+atomically at registration time (`auth-gateway/server.js` sends
+`displayname: name` in its own admin-registration call, since Synapse's
+Admin API does support it — the original plan's belief that it didn't
+was wrong), so `register()` no longer calls `client.setDisplayName(name)`
+itself. This also fixes a real bug: the original version parsed
+`resp.json()` before checking `resp.ok`, so a non-JSON failure response
+(e.g. the gateway URL being unset in an environment where it hasn't been
+deployed) threw an unreadable English `SyntaxError` instead of a Russian
+message — the `AUTH_GATEWAY_URL` guard and reordered `resp.ok` check
+above close that gap.
 
 Note: `restoreSession()` (later in the same file) reads a stored
 `homeserver` from `localStorage` and passes it to `createClient` — leave
