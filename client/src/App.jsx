@@ -67,6 +67,26 @@ export default function App() {
     setJumpToEventId(null)
   }
 
+  useEffect(() => {
+    if (!client) return
+    const openFromRoomId = (roomId) => {
+      if (!roomId) return
+      const room = client.getRoom(roomId)
+      if (room) handleRoomSelect(room)
+    }
+    const params = new URLSearchParams(window.location.search)
+    const roomId = params.get('room')
+    if (roomId) {
+      openFromRoomId(roomId)
+      window.history.replaceState({}, '', window.location.pathname)
+    }
+    const onMessage = (event) => {
+      if (event.data?.type === 'open-room') openFromRoomId(event.data.roomId)
+    }
+    navigator.serviceWorker?.addEventListener('message', onMessage)
+    return () => navigator.serviceWorker?.removeEventListener('message', onMessage)
+  }, [client])
+
   if (loading) {
     return (
       <div style={{ height: '100vh', background: 'var(--bg-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
