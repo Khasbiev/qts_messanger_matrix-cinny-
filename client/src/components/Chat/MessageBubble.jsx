@@ -6,6 +6,7 @@ import { findUrlSpans } from '../../lib/linkify'
 import useResolvedMedia from '../../lib/useResolvedMedia'
 import LinkPreview from './LinkPreview'
 import MessageActions from './MessageActions'
+import MessageContextMenu from './MessageContextMenu'
 import Modal from '../Modals/Modal'
 import ForwardModal from '../Modals/ForwardModal'
 
@@ -219,6 +220,7 @@ export default function MessageBubble({ message, roomId, onEdit, onReply, highli
   const [hovered, setHovered] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [forwardOpen, setForwardOpen] = useState(false)
+  const [contextMenu, setContextMenu] = useState(null)
 
   if (message.type === 'date') {
     return (
@@ -290,12 +292,22 @@ export default function MessageBubble({ message, roomId, onEdit, onReply, highli
     }
   }
 
+  const handleContextMenu = (e) => {
+    e.preventDefault()
+    setContextMenu({ x: e.clientX, y: e.clientY })
+  }
+
+  const handleCopy = () => {
+    if (text != null) navigator.clipboard.writeText(text).catch(() => {})
+  }
+
   return (
     <>
     <div
       data-event-id={message.id}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
+      onContextMenu={handleContextMenu}
       style={{
         position: 'relative',
         display: 'flex',
@@ -527,6 +539,18 @@ export default function MessageBubble({ message, roomId, onEdit, onReply, highli
     )}
     {forwardOpen && (
       <ForwardModal message={message} roomId={roomId} onClose={() => setForwardOpen(false)} />
+    )}
+    {contextMenu && (
+      <MessageContextMenu
+        position={contextMenu}
+        onClose={() => setContextMenu(null)}
+        onReact={handleReact}
+        onReply={() => onReply(message)}
+        onForward={() => setForwardOpen(true)}
+        onCopy={text != null ? handleCopy : undefined}
+        onEdit={isOwn && text != null ? () => onEdit(message) : undefined}
+        onDeleteClick={isOwn ? () => setConfirmOpen(true) : undefined}
+      />
     )}
     </>
   )

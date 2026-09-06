@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { IconMoodSmile } from '@tabler/icons-react'
 import EmojiPicker from './EmojiPicker'
 
-const QUICK_REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '🙏', '🔥']
+export const QUICK_REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '🙏', '🔥']
 
 function ActionButton({ onClick, title, children }) {
   return (
