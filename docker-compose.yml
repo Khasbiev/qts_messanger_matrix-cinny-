@@ -156,3 +156,9 @@ volumes:
 networks:
   matrix-net:
     driver: bridge
+    # Fixed subnet so synapse/homeserver.yaml.template's ip_range_whitelist
+    # (needed for push-gateway delivery to bypass Synapse's SSRF blocklist)
+    # can name it explicitly instead of guessing Docker's auto-assigned range.
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16

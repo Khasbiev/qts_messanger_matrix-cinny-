@@ -51,6 +51,14 @@ media_store_path: "/data/media_store"
 # Max upload size — 100 MB (also set in nginx client_max_body_size)
 max_upload_size: 100M
 
+# Allow outbound HTTP calls (used for delivering push notifications) to
+# reach push-gateway on the docker-compose internal network — otherwise
+# Synapse's default SSRF protection blocks it as a private IP range and
+# push notifications silently never arrive. Must match the matrix-net
+# subnet defined in docker-compose.yml.
+ip_range_whitelist:
+  - "172.28.0.0/16"
+
 # Enable link previews in chat
 url_preview_enabled: true
 
