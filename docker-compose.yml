@@ -1,9 +1,7 @@
-version: '3.8'
-
 # ═══════════════════════════════════════════════════════════════
-# Matrix Synapse + Cinny — Docker Compose
+# QTS Messenger — Docker Compose
 # Domains:
-#   messanger.qts.dev       → Cinny web client
+#   messanger.qts.dev        → client web app (+ auth/push gateways under /api/)
 #   matrix.messanger.qts.dev → Synapse homeserver
 # ═══════════════════════════════════════════════════════════════
 
@@ -54,19 +52,67 @@ services:
       - matrix-net
 
   # ─────────────────────────────────────────
-  # Cinny — Matrix web client
+  # Client — custom React/Vite web app (static build served via nginx)
   # ─────────────────────────────────────────
-  cinny:
-    image: ajbura/cinny:latest
-    container_name: matrix-cinny
+  client:
+    build:
+      context: ./client
+      args:
+        # Left unset in prod — matrix.js falls back to the hardcoded
+        # production homeserver default.
+        VITE_HOMESERVER_URL: ""
+        VITE_AUTH_GATEWAY_URL: "https://${SERVER_NAME}/api/auth"
+        VITE_PUSH_GATEWAY_URL: "https://${SERVER_NAME}/api/push"
+        # Synapse calls this one server-to-server (container network),
+        # never the browser, so an internal docker DNS name is correct here.
+        VITE_PUSH_GATEWAY_NOTIFY_URL: "http://push-gateway:4000"
+        VITE_VAPID_PUBLIC_KEY: "${VAPID_PUBLIC_KEY}"
+    container_name: matrix-client
     restart: unless-stopped
+    networks:
+      - matrix-net
+
+  # ─────────────────────────────────────────
+  # Auth gateway — phone-number registration/login bridge to Synapse's
+  # admin API (holds registration_shared_secret, never exposed to the browser)
+  # ─────────────────────────────────────────
+  auth-gateway:
+    build:
+      context: ./auth-gateway
+    container_name: matrix-auth-gateway
+    restart: unless-stopped
+    environment:
+      REGISTRATION_SHARED_SECRET: ${SYNAPSE_REGISTRATION_SHARED_SECRET}
+      SYNAPSE_URL: http://synapse:8008
+      PORT: 4001
+    depends_on:
+      - synapse
+    networks:
+      - matrix-net
+
+  # ─────────────────────────────────────────
+  # Push gateway — bridges Synapse's Matrix Push Gateway API to real
+  # VAPID-signed Web Push for desktop/mobile browser notifications
+  # ─────────────────────────────────────────
+  push-gateway:
+    build:
+      context: ./push-gateway
+    container_name: matrix-push-gateway
+    restart: unless-stopped
+    environment:
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY}
+      VAPID_SUBJECT: ${VAPID_SUBJECT}
+      PORT: 4000
     volumes:
-      - ./cinny/config.json:/app/config.json:ro
+      # Persists subscription pushkeys across restarts
+      - ./push-gateway/data:/app/data
     networks:
       - matrix-net
 
   # ─────────────────────────────────────────
   # Nginx — reverse proxy with SSL
+  # Certs managed by the certbot service below (renews automatically)
   # ─────────────────────────────────────────
   nginx:
     image: nginx:alpine
@@ -81,7 +127,9 @@ services:
       - ./nginx/certbot/www:/var/www/certbot:ro
     depends_on:
       - synapse
-      - cinny
+      - client
+      - auth-gateway
+      - push-gateway
     networks:
       - matrix-net
 

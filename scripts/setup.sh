@@ -1,6 +1,7 @@
 #!/bin/bash
 # ═══════════════════════════════════════════════════════════════
-# Matrix Synapse + Cinny — Full Deployment Script
+# QTS Messenger — Full Deployment Script
+# (Synapse + client + auth-gateway + push-gateway, behind nginx)
 # Run from the project root: bash scripts/setup.sh
 # Requires: Docker, Docker Compose, openssl, curl
 # ═══════════════════════════════════════════════════════════════
@@ -27,7 +28,7 @@ step()    { echo -e "\n${GREEN}═══ $1 ═══${NC}"; }
 
 echo ""
 echo "═══════════════════════════════════════════════════════"
-echo "  Matrix Synapse + Cinny — Deployment"
+echo "  QTS Messenger — Deployment"
 echo "  Server name : $SERVER_NAME"
 echo "  Synapse API : $SYNAPSE_DOMAIN"
 echo "═══════════════════════════════════════════════════════"
@@ -78,7 +79,6 @@ else
 
 SERVER_NAME=${SERVER_NAME}
 SYNAPSE_DOMAIN=${SYNAPSE_DOMAIN}
-CINNY_DOMAIN=${SERVER_NAME}
 
 POSTGRES_DB=synapse
 POSTGRES_USER=synapse_user
@@ -92,6 +92,24 @@ CERTBOT_EMAIL=${CERTBOT_EMAIL}
 EOF
     info ".env created with generated secrets"
     source .env
+fi
+
+# VAPID keys (Web Push) may be missing even on an existing .env from before
+# this feature was added — top it up rather than assuming it's there.
+if [ -z "${VAPID_PUBLIC_KEY:-}" ]; then
+    info "Generating VAPID keys for Web Push..."
+    docker build -q -t qts-push-gateway push-gateway/ > /tmp/qts-push-gateway-build.log \
+        || error "Failed to build push-gateway image (log: /tmp/qts-push-gateway-build.log)"
+    VAPID_OUT=$(docker run --rm qts-push-gateway node scripts/generate-vapid-keys.js)
+    VAPID_PUBLIC_KEY=$(echo "$VAPID_OUT" | grep VAPID_PUBLIC_KEY | cut -d= -f2)
+    VAPID_PRIVATE_KEY=$(echo "$VAPID_OUT" | grep VAPID_PRIVATE_KEY | cut -d= -f2)
+    {
+        echo ""
+        echo "VAPID_PUBLIC_KEY=${VAPID_PUBLIC_KEY}"
+        echo "VAPID_PRIVATE_KEY=${VAPID_PRIVATE_KEY}"
+        echo "VAPID_SUBJECT=mailto:${CERTBOT_EMAIL}"
+    } >> .env
+    info "VAPID keys generated and saved to .env"
 fi
 
 
@@ -190,9 +208,11 @@ fi
 # ─────────────────────────────────────────────────────────────
 # STEP 6 — Start all services
 # ─────────────────────────────────────────────────────────────
-step "Step 6: Starting services"
+step "Step 6: Building images & starting services"
 
-$COMPOSE --env-file .env up -d
+# --build ensures the client image picks up VAPID/gateway URLs baked in
+# as build args from the current .env (docker compose auto-loads it).
+$COMPOSE --env-file .env up -d --build
 info "All containers started"
 
 
@@ -226,12 +246,28 @@ else
     echo -e "${YELLOW}${WELLKNOWN}${NC}"
 fi
 
-# Check Cinny is reachable
-echo -n "  Cinny web client... "
+# Check the web client is reachable
+echo -n "  Web client... "
 if curl -sf "https://${SERVER_NAME}" > /dev/null 2>&1; then
     echo -e "${GREEN}OK${NC}"
 else
-    echo -e "${YELLOW}not responding — check: docker logs matrix-cinny${NC}"
+    echo -e "${YELLOW}not responding — check: docker logs matrix-client${NC}"
+fi
+
+# Check auth-gateway is reachable
+echo -n "  Auth gateway... "
+if curl -sf "https://${SERVER_NAME}/api/auth/health" > /dev/null 2>&1; then
+    echo -e "${GREEN}OK${NC}"
+else
+    echo -e "${YELLOW}not responding — check: docker logs matrix-auth-gateway${NC}"
+fi
+
+# Check push-gateway is reachable
+echo -n "  Push gateway... "
+if curl -sf "https://${SERVER_NAME}/api/push/health" > /dev/null 2>&1; then
+    echo -e "${GREEN}OK${NC}"
+else
+    echo -e "${YELLOW}not responding — check: docker logs matrix-push-gateway${NC}"
 fi
 
 
