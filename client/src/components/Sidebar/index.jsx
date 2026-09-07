@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { IconSearch, IconPlus, IconMenu2 } from '@tabler/icons-react'
+import { IconSearch, IconPlus, IconMenu2, IconMessageCircle, IconAddressBook, IconSettings } from '@tabler/icons-react'
 import { ClientEvent, RoomEvent } from 'matrix-js-sdk'
 import ChatItem from './ChatItem'
 import SearchResults from './SearchResults'
@@ -195,7 +195,31 @@ export default function Sidebar({ client, activeRoom, onRoomSelect, onLogout, fu
       {showContacts && (
         <ContactsModal onClose={() => setShowContacts(false)} onOpenChat={handleCreated} />
       )}
+
+      {/* Mobile-only bottom nav — on desktop these live in the hamburger menu */}
+      {fullWidth && (
+        <div style={{ display: 'flex', borderTop: '1px solid var(--border)', flexShrink: 0 }}>
+          <TabButton icon={IconMessageCircle} label="Чаты" active onClick={() => setQuery('')} />
+          <TabButton icon={IconAddressBook} label="Контакты" onClick={() => setShowContacts(true)} />
+          <TabButton icon={IconSettings} label="Настройки" onClick={() => setShowSettings(true)} />
+        </div>
+      )}
     </div>
+  )
+}
+
+function TabButton({ icon: Icon, label, active, onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px',
+        padding: '8px 0 10px', color: active ? 'var(--accent-teal)' : 'var(--text-muted)',
+      }}
+    >
+      <Icon size={20} strokeWidth={1.8} />
+      <span style={{ fontSize: '10px', fontWeight: 500 }}>{label}</span>
+    </button>
   )
 }
 

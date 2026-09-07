@@ -28,6 +28,15 @@ export async function isPushSubscribed() {
 }
 
 export async function enablePush(client) {
+  // Safari on iOS doesn't expose `Notification`/`PushManager` at all in a
+  // regular browser tab — only inside a PWA added to the home screen (16.4+).
+  // Without this check, calling Notification.requestPermission() throws a
+  // raw ReferenceError that surfaces to the user as "Can't find variable:
+  // Notification" instead of an actionable message.
+  if (typeof Notification === 'undefined' || !('serviceWorker' in navigator) || !('PushManager' in window)) {
+    throw new Error('Уведомления недоступны в этом браузере. На iPhone: добавьте сайт на экран «Домой» (кнопка «Поделиться» → «На экран «Домой»») и откройте его оттуда — Safari поддерживает push-уведомления только в установленном виде.')
+  }
+
   const permission = await Notification.requestPermission()
   if (permission !== 'granted') throw new Error('Разрешение на уведомления не получено')
 
