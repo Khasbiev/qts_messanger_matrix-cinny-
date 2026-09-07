@@ -1,6 +1,7 @@
 import { createClient, ClientEvent, RoomEvent } from 'matrix-js-sdk'
 import { findMentionSpans, buildMentionHtml } from './mentions'
 import { disablePush } from './push'
+import { phoneToUsername } from './phone'
 
 const HOMESERVER = import.meta.env.VITE_HOMESERVER_URL || 'https://matrix.messanger.qts.dev'
 const AUTH_GATEWAY_URL = import.meta.env.VITE_AUTH_GATEWAY_URL
@@ -227,9 +228,21 @@ export async function createChannel({ name, topic, inviteUserIds }) {
 
 export async function searchUsers(term) {
   if (!_client) throw new Error('Not connected')
-  if (!term.trim()) return []
-  const { results } = await _client.searchUserDirectory({ term, limit: 50 })
-  return results.filter(u => u.user_id !== _client.getUserId())
+  const trimmed = term.trim()
+  if (!trimmed) return []
+
+  // Accounts are registered as u<digits> (see phone.js), not the phone
+  // number itself, so searching for "+7921..." against the user directory
+  // never matches anything - also try the normalized username.
+  const phoneUsername = phoneToUsername(trimmed)
+  const terms = phoneUsername && phoneUsername !== trimmed ? [trimmed, phoneUsername] : [trimmed]
+
+  const byUserId = new Map()
+  for (const t of terms) {
+    const { results } = await _client.searchUserDirectory({ term: t, limit: 50 })
+    for (const u of results) byUserId.set(u.user_id, u)
+  }
+  return [...byUserId.values()].filter(u => u.user_id !== _client.getUserId())
 }
 
 export async function createOrGetDirectMessage(userId) {
