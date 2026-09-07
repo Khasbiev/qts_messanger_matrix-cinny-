@@ -3,12 +3,12 @@ import { IconCamera, IconLoader2, IconPencil, IconPlus } from '@tabler/icons-rea
 import Modal from './Modal'
 import UserPicker from './UserPicker'
 import {
-  isDirectRoom, leaveRoom, resolveMediaUrl,
+  isDirectRoom, resolveMediaUrl,
   updateRoomTopic, updateRoomAvatar, inviteToRoom, kickFromRoom,
 } from '../../lib/matrix'
 import { colorFor } from '../../lib/avatarColor'
 
-export default function ChatInfoModal({ client, room, onClose, onLeave, presenceText }) {
+export default function ChatInfoModal({ client, room, onClose, presenceText }) {
   const isDM = isDirectRoom(client, room.roomId)
   const me = client.getUserId()
   const color = colorFor(room.roomId)
@@ -25,20 +25,6 @@ export default function ChatInfoModal({ client, room, onClose, onLeave, presence
   const canKick = !isDM && room.currentState.hasSufficientPowerLevelFor('kick', myPowerLevel)
 
   const [error, setError] = useState('')
-
-  const [leaving, setLeaving] = useState(false)
-  const handleLeave = async () => {
-    setLeaving(true)
-    setError('')
-    try {
-      await leaveRoom(room.roomId)
-      onLeave()
-      onClose()
-    } catch (err) {
-      setError(err.data?.error || err.message || 'Не удалось выйти из чата')
-      setLeaving(false)
-    }
-  }
 
   const [avatarMxcUrl, setAvatarMxcUrl] = useState(() => room.getMxcAvatarUrl())
   const [avatarBlobUrl, setAvatarBlobUrl] = useState(null)
@@ -242,14 +228,6 @@ export default function ChatInfoModal({ client, room, onClose, onLeave, presence
             </div>
           </div>
         )}
-
-        <button
-          onClick={handleLeave}
-          disabled={leaving}
-          style={{ padding: '10px 14px', borderRadius: '7px', background: 'rgba(255,77,77,0.1)', color: '#ff4d4d', fontSize: '13px', fontWeight: 600, border: '1px solid rgba(255,77,77,0.3)' }}
-        >
-          {leaving ? 'Выход...' : 'Выйти из чата'}
-        </button>
 
         {error && <div style={{ fontSize: '12px', color: '#ff4d4d' }}>{error}</div>}
       </div>

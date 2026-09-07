@@ -3,6 +3,7 @@ import Sidebar from './components/Sidebar'
 import Chat from './components/Chat'
 import LoginScreen from './components/Auth/LoginScreen'
 import { restoreSession, startSync, logout } from './lib/matrix'
+import { isModalOpen } from './lib/modalStack'
 
 const NARROW_BREAKPOINT = 780
 
@@ -62,10 +63,22 @@ export default function App() {
     if (isNarrow) setListVisible(false)
   }
 
-  const handleLeaveRoom = () => {
+  // Just deselects the open chat (back to the room list) - there is no
+  // "leave the room" action in this app, on purpose.
+  const handleDeselectRoom = () => {
     setActiveRoom(null)
     setJumpToEventId(null)
   }
+
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      if (e.key !== 'Escape') return
+      if (isModalOpen()) return // let the topmost modal/popup close itself
+      if (activeRoom) handleDeselectRoom()
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [activeRoom])
 
   useEffect(() => {
     if (!client) return
@@ -129,7 +142,6 @@ export default function App() {
           room={activeRoom}
           navMode={navMode}
           onNav={handleNav}
-          onLeave={handleLeaveRoom}
           jumpToEventId={jumpToEventId}
         />
       )}

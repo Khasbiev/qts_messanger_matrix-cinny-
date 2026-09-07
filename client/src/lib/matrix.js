@@ -476,11 +476,6 @@ export async function forwardMessage(sourceRoomId, message, targetRoomIds) {
   }
 }
 
-export async function leaveRoom(roomId) {
-  if (!_client) throw new Error('Not connected')
-  await _client.leave(roomId)
-}
-
 export async function updateRoomTopic(roomId, topic) {
   if (!_client) throw new Error('Not connected')
   await _client.setRoomTopic(roomId, topic)

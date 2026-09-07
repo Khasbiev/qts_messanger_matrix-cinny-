@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { pushModal, popModal } from '../../lib/modalStack'
 
 const EMOJI = [
   '😀', '😂', '😅', '😉', '😊', '😍', '🤔', '😎', '😢', '😭',
@@ -8,6 +9,11 @@ const EMOJI = [
 
 export default function EmojiPicker({ onPick, onClose, style }) {
   const ref = useRef(null)
+
+  useEffect(() => {
+    pushModal()
+    return () => popModal()
+  }, [])
 
   useEffect(() => {
     const onClickOutside = (e) => { if (ref.current && !ref.current.contains(e.target)) onClose() }

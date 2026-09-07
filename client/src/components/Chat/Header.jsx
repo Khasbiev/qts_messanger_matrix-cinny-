@@ -19,7 +19,7 @@ function pluralizePeople(count) {
   return 'человек'
 }
 
-export default function Header({ client, room, navMode, onNav, onLeave }) {
+export default function Header({ client, room, navMode, onNav }) {
   const memberCount = room.getJoinedMemberCount()
   const isDM = isDirectRoom(client, room.roomId)
   const color = colorFor(room.roomId)
@@ -139,7 +139,7 @@ export default function Header({ client, room, navMode, onNav, onLeave }) {
       </div>
 
       {infoOpen && (
-        <ChatInfoModal client={client} room={room} onClose={() => setInfoOpen(false)} onLeave={onLeave} presenceText={presenceText} />
+        <ChatInfoModal client={client} room={room} onClose={() => setInfoOpen(false)} presenceText={presenceText} />
       )}
     </div>
   )

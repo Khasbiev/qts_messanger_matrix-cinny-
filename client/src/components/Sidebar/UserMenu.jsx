@@ -1,8 +1,14 @@
 import { useEffect, useRef } from 'react'
 import { IconAddressBook, IconSettings, IconLogout } from '@tabler/icons-react'
+import { pushModal, popModal } from '../../lib/modalStack'
 
 export default function UserMenu({ client, onClose, onOpenContacts, onOpenSettings, onLogout }) {
   const ref = useRef(null)
+
+  useEffect(() => {
+    pushModal()
+    return () => popModal()
+  }, [])
 
   useEffect(() => {
     const onClickOutside = (e) => { if (ref.current && !ref.current.contains(e.target)) onClose() }

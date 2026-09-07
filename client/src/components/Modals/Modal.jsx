@@ -1,7 +1,13 @@
 import { useEffect } from 'react'
 import { IconX } from '@tabler/icons-react'
+import { pushModal, popModal } from '../../lib/modalStack'
 
 export default function Modal({ title, onClose, children, footer }) {
+  useEffect(() => {
+    pushModal()
+    return () => popModal()
+  }, [])
+
   useEffect(() => {
     const onKeyDown = (e) => { if (e.key === 'Escape') onClose() }
     window.addEventListener('keydown', onKeyDown)
