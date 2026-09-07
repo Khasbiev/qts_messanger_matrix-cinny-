@@ -175,6 +175,10 @@ if [ -f "$CERT_PATH" ]; then
     warn "SSL certificates already exist — skipping (delete nginx/certbot/conf to renew)"
 else
     info "Starting temporary HTTP server for ACME challenge..."
+    # Clean up a leftover container from a previous interrupted run —
+    # otherwise `docker run --name matrix-nginx-init` below fails on
+    # both name and port-80 conflicts.
+    docker rm -f matrix-nginx-init &>/dev/null || true
     docker run -d \
         --name matrix-nginx-init \
         -p 80:80 \
