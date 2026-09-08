@@ -4,6 +4,7 @@ import Modal from './Modal'
 import { getOwnProfile, updateDisplayName, updateAvatar, resolveMediaUrl } from '../../lib/matrix'
 import { colorFor } from '../../lib/avatarColor'
 import { isPushSubscribed, enablePush, disablePush } from '../../lib/push'
+import { getMyUsername, setMyUsername } from '../../lib/username'
 
 export default function SettingsModal({ client, onClose }) {
   const userId = client?.getUserId() || ''
@@ -22,6 +23,12 @@ export default function SettingsModal({ client, onClose }) {
   const [pushBusy, setPushBusy] = useState(false)
   const [pushError, setPushError] = useState('')
   const fileInputRef = useRef(null)
+
+  const [username, setUsernameField] = useState('')
+  const [savedUsername, setSavedUsername] = useState(null)
+  const [savingUsername, setSavingUsername] = useState(false)
+  const [usernameSaved, setUsernameSaved] = useState(false)
+  const [usernameError, setUsernameError] = useState('')
 
   useEffect(() => {
     let cancelled = false
@@ -42,6 +49,10 @@ export default function SettingsModal({ client, onClose }) {
   useEffect(() => {
     isPushSubscribed().then(setPushSubscribed).catch(() => {})
   }, [])
+
+  useEffect(() => {
+    getMyUsername(client).then(u => { setSavedUsername(u); setUsernameField(u || '') }).catch(() => {})
+  }, [client])
 
   const handleAvatarClick = () => fileInputRef.current?.click()
 
@@ -75,6 +86,24 @@ export default function SettingsModal({ client, onClose }) {
       setError(err.data?.error || err.message || 'Не удалось сохранить имя')
     } finally {
       setSavingName(false)
+    }
+  }
+
+  const handleSaveUsername = async () => {
+    const trimmed = username.trim()
+    if (!trimmed || trimmed === savedUsername) return
+    setSavingUsername(true)
+    setUsernameError('')
+    setUsernameSaved(false)
+    try {
+      const saved = await setMyUsername(client, trimmed)
+      setSavedUsername(saved)
+      setUsernameField(saved)
+      setUsernameSaved(true)
+    } catch (err) {
+      setUsernameError(err.message || 'Не удалось сохранить юзернейм')
+    } finally {
+      setSavingUsername(false)
     }
   }
 
@@ -151,6 +180,37 @@ export default function SettingsModal({ client, onClose }) {
             </button>
           </div>
           {nameSaved && <div style={{ fontSize: '11px', color: 'var(--accent-teal)', marginTop: '4px' }}>Сохранено</div>}
+        </div>
+
+        <div>
+          <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            Юзернейм
+          </div>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '2px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '7px', padding: '0 12px' }}>
+              <span style={{ fontSize: '14px', color: 'var(--text-muted)' }}>@</span>
+              <input
+                value={username}
+                onChange={e => { setUsernameField(e.target.value.replace(/\s/g, '')); setUsernameSaved(false); setUsernameError('') }}
+                placeholder="не задан"
+                style={{ flex: 1, fontSize: '14px', color: 'var(--text-primary)', background: 'none', border: 'none', outline: 'none', padding: '9px 0' }}
+              />
+            </div>
+            <button
+              onClick={handleSaveUsername}
+              disabled={savingUsername || !username.trim() || username.trim() === savedUsername}
+              style={{
+                padding: '0 14px', borderRadius: '7px', fontSize: '13px', fontWeight: 600,
+                background: username.trim() && username.trim() !== savedUsername ? 'var(--accent-teal)' : 'var(--bg-card)',
+                color: username.trim() && username.trim() !== savedUsername ? '#000' : 'var(--text-muted)',
+              }}
+            >
+              {savingUsername ? '...' : 'Сохранить'}
+            </button>
+          </div>
+          <div style={{ fontSize: '11px', color: usernameError ? '#ff4d4d' : 'var(--text-muted)', marginTop: '4px' }}>
+            {usernameError || (usernameSaved ? 'Сохранено' : 'По нему тоже можно найти в поиске — не только по номеру')}
+          </div>
         </div>
 
         <Field label="Matrix ID" value={userId} />

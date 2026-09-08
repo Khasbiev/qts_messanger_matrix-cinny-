@@ -85,6 +85,9 @@ services:
       REGISTRATION_SHARED_SECRET: ${SYNAPSE_REGISTRATION_SHARED_SECRET}
       SYNAPSE_URL: http://synapse:8008
       PORT: 4001
+    volumes:
+      # Persists the username -> user_id mapping across restarts
+      - ./auth-gateway/data:/app/data
     depends_on:
       - synapse
     networks:

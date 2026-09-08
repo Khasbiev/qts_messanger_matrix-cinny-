@@ -3,6 +3,7 @@ import express from 'express'
 import cors from 'cors'
 import crypto from 'crypto'
 import { phoneToUsername } from './phone.js'
+import { setUsername, getUsernameForUser, searchUsernames } from './store.js'
 
 const { REGISTRATION_SHARED_SECRET, SYNAPSE_URL, PORT = 4001 } = process.env
 
@@ -53,6 +54,53 @@ app.post('/register', async (req, res) => {
     console.error('Registration failed:', err.message)
     res.status(502).json({ error: 'Сервер регистрации недоступен' })
   }
+})
+
+// Resolves the caller's Matrix user_id from their access token, rather than
+// trusting a client-supplied user_id - otherwise anyone could set (or
+// squat) another account's username.
+async function requireAuth(req, res, next) {
+  const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '')
+  if (!token) return res.status(401).json({ error: 'Требуется авторизация' })
+  try {
+    const resp = await fetch(`${SYNAPSE_URL}/_matrix/client/v3/account/whoami`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (!resp.ok) return res.status(401).json({ error: 'Недействительная сессия' })
+    const { user_id: userId } = await resp.json()
+    req.userId = userId
+    next()
+  } catch (err) {
+    console.error('whoami check failed:', err.message)
+    res.status(502).json({ error: 'Сервер регистрации недоступен' })
+  }
+}
+
+const USERNAME_RE = /^[a-zA-Z][a-zA-Z0-9_]{4,31}$/
+
+app.post('/username', requireAuth, (req, res) => {
+  const username = String(req.body?.username || '').trim()
+  if (!USERNAME_RE.test(username)) {
+    return res.status(400).json({ error: 'Юзернейм: 5-32 символа, латиница/цифры/_, начинается с буквы' })
+  }
+  try {
+    setUsername(req.userId, username)
+    res.json({ ok: true, username })
+  } catch (err) {
+    if (err.code === 'USERNAME_TAKEN') return res.status(409).json({ error: err.message })
+    console.error('setUsername failed:', err.message)
+    res.status(500).json({ error: 'Не удалось сохранить юзернейм' })
+  }
+})
+
+app.get('/username/me', requireAuth, (req, res) => {
+  res.json({ username: getUsernameForUser(req.userId) })
+})
+
+app.get('/username/search', requireAuth, (req, res) => {
+  const term = String(req.query.q || '').trim()
+  if (!term) return res.json({ results: [] })
+  res.json({ results: searchUsernames(term) })
 })
 
 app.get('/health', (req, res) => res.json({ ok: true }))

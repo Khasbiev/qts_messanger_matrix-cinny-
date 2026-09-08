@@ -2,6 +2,7 @@ import { createClient, ClientEvent, RoomEvent } from 'matrix-js-sdk'
 import { findMentionSpans, buildMentionHtml } from './mentions'
 import { disablePush } from './push'
 import { phoneToUsername } from './phone'
+import { searchByUsername } from './username'
 
 const HOMESERVER = import.meta.env.VITE_HOMESERVER_URL || 'https://matrix.messanger.qts.dev'
 const AUTH_GATEWAY_URL = import.meta.env.VITE_AUTH_GATEWAY_URL
@@ -242,6 +243,23 @@ export async function searchUsers(term) {
     const { results } = await _client.searchUserDirectory({ term: t, limit: 50 })
     for (const u of results) byUserId.set(u.user_id, u)
   }
+
+  // Usernames (a separate, user-chosen handle - see lib/username.js) live
+  // outside Synapse's own directory, so they need their own lookup, merged
+  // in here. Synapse's search results already carry a display_name; fetch
+  // the same for username-only hits so both render identically.
+  const usernameHits = await searchByUsername(_client, trimmed).catch(() => [])
+  await Promise.all(usernameHits.map(async ({ user_id, username }) => {
+    if (byUserId.has(user_id)) return
+    let displayName
+    try {
+      displayName = (await _client.getProfileInfo(user_id))?.displayname
+    } catch {
+      // profile lookup failed - still show the hit, just with the username as the label
+    }
+    byUserId.set(user_id, { user_id, display_name: displayName || `@${username}` })
+  }))
+
   return [...byUserId.values()].filter(u => u.user_id !== _client.getUserId())
 }
 
