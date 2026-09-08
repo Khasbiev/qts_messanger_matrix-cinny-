@@ -1,6 +1,8 @@
 import { useEffect, useRef } from 'react'
 import { IconAddressBook, IconSettings, IconLogout } from '@tabler/icons-react'
 import { pushModal, popModal } from '../../lib/modalStack'
+import { getOwnProfile } from '../../lib/matrix'
+import Avatar from '../Avatar'
 
 export default function UserMenu({ client, onClose, onOpenContacts, onOpenSettings, onLogout }) {
   const ref = useRef(null)
@@ -22,7 +24,8 @@ export default function UserMenu({ client, onClose, onOpenContacts, onOpenSettin
   }, [onClose])
 
   const userId = client?.getUserId() || ''
-  const displayName = userId.replace('@', '').split(':')[0]
+  const profile = getOwnProfile()
+  const displayName = profile.displayName
   const initials = displayName.slice(0, 2).toUpperCase()
 
   return (
@@ -42,9 +45,7 @@ export default function UserMenu({ client, onClose, onOpenContacts, onOpenSettin
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px', borderBottom: '1px solid var(--border)' }}>
-        <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'var(--accent-teal)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: 700, color: '#000', flexShrink: 0 }}>
-          {initials}
-        </div>
+        <Avatar mxcUrl={profile.avatarMxcUrl} label={initials} size={36} bg="var(--accent-teal)" fg="#000" style={{ fontSize: '13px', fontWeight: 700 }} />
         <div style={{ minWidth: 0 }}>
           <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{displayName}</div>
           <div style={{ fontSize: '11px', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{userId}</div>

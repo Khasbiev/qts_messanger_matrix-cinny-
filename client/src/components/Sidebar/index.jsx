@@ -145,7 +145,7 @@ export default function Sidebar({ client, activeRoom, onRoomSelect, onLogout, fu
                 return (
                   <ChatItem
                     key={room.roomId}
-                    item={{ id: room.roomId, name: room.name, unread: room.getUnreadNotificationCount(), preview: preview.text, time: preview.time }}
+                    item={{ id: room.roomId, name: room.name, avatarMxcUrl: room.getMxcAvatarUrl(), unread: room.getUnreadNotificationCount(), preview: preview.text, time: preview.time }}
                     type="channel"
                     isActive={activeRoom?.roomId === room.roomId}
                     onSelect={() => onRoomSelect(room)}
@@ -165,7 +165,7 @@ export default function Sidebar({ client, activeRoom, onRoomSelect, onLogout, fu
                 return (
                   <ChatItem
                     key={room.roomId}
-                    item={{ id: room.roomId, name, avatar: name.slice(0, 2).toUpperCase(), online: false, unread: room.getUnreadNotificationCount(), preview: preview.text, time: preview.time }}
+                    item={{ id: room.roomId, name, avatar: name.slice(0, 2).toUpperCase(), avatarMxcUrl: other?.getMxcAvatarUrl(), online: false, unread: room.getUnreadNotificationCount(), preview: preview.text, time: preview.time }}
                     type="dm"
                     isActive={activeRoom?.roomId === room.roomId}
                     onSelect={() => onRoomSelect(room)}

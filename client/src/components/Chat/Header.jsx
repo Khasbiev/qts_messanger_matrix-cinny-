@@ -4,6 +4,7 @@ import { IconArrowLeft, IconLayoutSidebarLeftCollapse, IconLayoutSidebarLeftExpa
 import { colorFor } from '../../lib/avatarColor'
 import { isDirectRoom } from '../../lib/matrix'
 import ChatInfoModal from '../Modals/ChatInfoModal'
+import Avatar from '../Avatar'
 
 const NAV_ICON = {
   back: IconArrowLeft,
@@ -24,6 +25,8 @@ export default function Header({ client, room, navMode, onNav }) {
   const isDM = isDirectRoom(client, room.roomId)
   const color = colorFor(room.roomId)
   const avatarLabel = isDM ? room.name.slice(0, 2).toUpperCase() : `#${room.name.slice(0, 1).toUpperCase()}`
+  const otherMember = isDM ? room.getJoinedMembers().find(m => m.userId !== client.getUserId()) : null
+  const avatarMxcUrl = isDM ? otherMember?.getMxcAvatarUrl() : room.getMxcAvatarUrl()
   const NavIcon = NAV_ICON[navMode]
 
   const [typingNames, setTypingNames] = useState([])
@@ -112,21 +115,7 @@ export default function Header({ client, room, navMode, onNav }) {
         onClick={() => setInfoOpen(true)}
         style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flex: 1, cursor: 'pointer' }}
       >
-        <div style={{
-          width: '36px',
-          height: '36px',
-          borderRadius: '50%',
-          background: color.bg,
-          color: color.fg,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: '12px',
-          fontWeight: 600,
-          flexShrink: 0,
-        }}>
-          {avatarLabel}
-        </div>
+        <Avatar mxcUrl={avatarMxcUrl} label={avatarLabel} size={36} bg={color.bg} fg={color.fg} style={{ fontSize: '12px' }} />
 
         <div style={{ minWidth: 0 }}>
           <div style={{ fontWeight: 600, fontSize: '15px', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>

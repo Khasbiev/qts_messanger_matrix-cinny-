@@ -86,6 +86,7 @@ function extractMessages(client, room) {
       sender: name,
       senderId,
       avatar: name.slice(0, 2).toUpperCase(),
+      avatarMxcUrl: member?.getMxcAvatarUrl(),
       time: new Date(ev.getTs()).toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit' }),
       isOwn: senderId === me,
     }

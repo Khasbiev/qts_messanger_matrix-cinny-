@@ -9,6 +9,7 @@ import MessageActions from './MessageActions'
 import MessageContextMenu from './MessageContextMenu'
 import Modal from '../Modals/Modal'
 import ForwardModal from '../Modals/ForwardModal'
+import Avatar from '../Avatar'
 
 function renderMessageText(text, mentionSpans, linkSpans) {
   const spans = [...mentionSpans, ...linkSpans].sort((a, b) => a.start - b.start)
@@ -270,7 +271,7 @@ export default function MessageBubble({ message, roomId, onEdit, onReply, highli
     )
   }
 
-  const { isOwn, sender, avatar, time, text, file, image, voice, roundVideo, reactions, readBy } = message
+  const { isOwn, sender, avatar, avatarMxcUrl, time, text, file, image, voice, roundVideo, reactions, readBy } = message
   const urlSpans = text ? findUrlSpans(text) : []
   const mentionSpans = text && message.mentions?.length ? findMentionSpans(text, message.mentions) : []
   const linkSpans = urlSpans.filter(u => !mentionSpans.some(m => u.start < m.end && u.end > m.start))
@@ -331,23 +332,14 @@ export default function MessageBubble({ message, roomId, onEdit, onReply, highli
       )}
       {/* Avatar (others only) */}
       {!isOwn && (
-        <div style={{
-          width: '32px',
-          height: '32px',
-          borderRadius: '50%',
-          background: 'var(--bg-card)',
-          border: '1px solid var(--border)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: '11px',
-          fontWeight: 600,
-          color: 'var(--text-secondary)',
-          flexShrink: 0,
-          marginBottom: reactions ? '22px' : '0',
-        }}>
-          {avatar}
-        </div>
+        <Avatar
+          mxcUrl={avatarMxcUrl}
+          label={avatar}
+          size={32}
+          bg="var(--bg-card)"
+          fg="var(--text-secondary)"
+          style={{ border: '1px solid var(--border)', fontSize: '11px', marginBottom: reactions ? '22px' : '0' }}
+        />
       )}
 
       {/* Content */}

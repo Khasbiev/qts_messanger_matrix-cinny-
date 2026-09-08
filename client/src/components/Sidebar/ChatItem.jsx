@@ -1,4 +1,5 @@
 import { colorFor } from '../../lib/avatarColor'
+import Avatar from '../Avatar'
 
 export default function ChatItem({ item, type, isActive, onSelect }) {
   const color = colorFor(item.id)
@@ -25,20 +26,7 @@ export default function ChatItem({ item, type, isActive, onSelect }) {
     >
       {/* Avatar */}
       <div style={{ position: 'relative', flexShrink: 0 }}>
-        <div style={{
-          width: '36px',
-          height: '36px',
-          borderRadius: '50%',
-          background: color.bg,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: '12px',
-          fontWeight: 600,
-          color: color.fg,
-        }}>
-          {avatarLabel}
-        </div>
+        <Avatar mxcUrl={item.avatarMxcUrl} label={avatarLabel} size={36} bg={color.bg} fg={color.fg} style={{ fontSize: '12px' }} />
         {type === 'dm' && item.online && (
           <div style={{
             position: 'absolute',
