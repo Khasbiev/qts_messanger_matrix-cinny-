@@ -2,10 +2,13 @@ import { useState, useEffect } from 'react'
 import Sidebar from './components/Sidebar'
 import Chat from './components/Chat'
 import LoginScreen from './components/Auth/LoginScreen'
+import InstallPrompt from './components/InstallPrompt'
 import { restoreSession, startSync, logout } from './lib/matrix'
 import { isModalOpen } from './lib/modalStack'
+import { needsIOSInstallPrompt } from './lib/platform'
 
 const NARROW_BREAKPOINT = 780
+const INSTALL_PROMPT_DISMISSED_KEY = 'qts_install_prompt_dismissed'
 
 export default function App() {
   const [client, setClient] = useState(null)
@@ -14,6 +17,7 @@ export default function App() {
   const [jumpToEventId, setJumpToEventId] = useState(null)
   const [listVisible, setListVisible] = useState(true)
   const [isNarrow, setIsNarrow] = useState(() => window.innerWidth < NARROW_BREAKPOINT)
+  const [showInstallPrompt, setShowInstallPrompt] = useState(false)
 
   useEffect(() => {
     const onResize = () => setIsNarrow(window.innerWidth < NARROW_BREAKPOINT)
@@ -49,6 +53,20 @@ export default function App() {
 
   const handleLogin = (newClient) => {
     setClient(newClient)
+  }
+
+  // Covers both a fresh login and a restored session on reload - client
+  // becomes non-null either way.
+  useEffect(() => {
+    if (!client) return
+    if (needsIOSInstallPrompt() && !localStorage.getItem(INSTALL_PROMPT_DISMISSED_KEY)) {
+      setShowInstallPrompt(true)
+    }
+  }, [client])
+
+  const dismissInstallPrompt = () => {
+    localStorage.setItem(INSTALL_PROMPT_DISMISSED_KEY, '1')
+    setShowInstallPrompt(false)
   }
 
   const handleLogout = async () => {
@@ -146,6 +164,7 @@ export default function App() {
         />
       )}
       {showNoRoomPlaceholder && <NoRoom />}
+      {showInstallPrompt && <InstallPrompt onClose={dismissInstallPrompt} />}
     </div>
   )
 }

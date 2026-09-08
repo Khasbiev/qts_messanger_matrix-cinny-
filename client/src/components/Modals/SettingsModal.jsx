@@ -1,12 +1,15 @@
 import { useState, useEffect, useRef } from 'react'
-import { IconCamera, IconLoader2, IconBell, IconBellOff } from '@tabler/icons-react'
+import { IconCamera, IconLoader2, IconBell, IconBellOff, IconDeviceMobile } from '@tabler/icons-react'
 import Modal from './Modal'
+import InstallPrompt from '../InstallPrompt'
 import { getOwnProfile, updateDisplayName, updateAvatar, resolveMediaUrl } from '../../lib/matrix'
 import { colorFor } from '../../lib/avatarColor'
 import { isPushSubscribed, enablePush, disablePush } from '../../lib/push'
 import { getMyUsername, setMyUsername } from '../../lib/username'
+import { needsIOSInstallPrompt } from '../../lib/platform'
 
 export default function SettingsModal({ client, onClose }) {
+  const [showInstallHelp, setShowInstallHelp] = useState(false)
   const userId = client?.getUserId() || ''
   const homeserver = client?.getHomeserverUrl?.() || ''
   const deviceId = client?.getDeviceId?.() || ''
@@ -128,6 +131,7 @@ export default function SettingsModal({ client, onClose }) {
   const initials = profile.displayName.slice(0, 2).toUpperCase()
 
   return (
+    <>
     <Modal title="Настройки" onClose={onClose}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
         <div style={{ display: 'flex', justifyContent: 'center' }}>
@@ -236,9 +240,25 @@ export default function SettingsModal({ client, onClose }) {
           {pushError && <div style={{ fontSize: '11px', color: '#ff4d4d', marginTop: '4px' }}>{pushError}</div>}
         </div>
 
+        {needsIOSInstallPrompt() && (
+          <button
+            onClick={() => setShowInstallHelp(true)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '8px', width: '100%',
+              fontSize: '14px', color: 'var(--text-primary)', background: 'var(--bg-card)',
+              border: '1px solid var(--border)', borderRadius: '7px', padding: '9px 12px',
+            }}
+          >
+            <IconDeviceMobile size={16} />
+            Как установить на iPhone
+          </button>
+        )}
+
         {error && <div style={{ fontSize: '12px', color: '#ff4d4d' }}>{error}</div>}
       </div>
     </Modal>
+    {showInstallHelp && <InstallPrompt onClose={() => setShowInstallHelp(false)} />}
+    </>
   )
 }
 
