@@ -10,6 +10,7 @@ import MessageContextMenu from './MessageContextMenu'
 import Modal from '../Modals/Modal'
 import ForwardModal from '../Modals/ForwardModal'
 import Avatar from '../Avatar'
+import ImageViewer from './ImageViewer'
 
 function renderMessageText(text, mentionSpans, linkSpans) {
   const spans = [...mentionSpans, ...linkSpans].sort((a, b) => a.start - b.start)
@@ -156,6 +157,7 @@ const EXT_COLOR = {
 
 function MediaImage({ mxcUrl, name }) {
   const blobUrl = useResolvedMedia(mxcUrl)
+  const [viewerOpen, setViewerOpen] = useState(false)
 
   if (!blobUrl) {
     return (
@@ -166,12 +168,15 @@ function MediaImage({ mxcUrl, name }) {
   }
 
   return (
-    <img
-      src={blobUrl}
-      alt={name}
-      style={{ maxWidth: '280px', maxHeight: '280px', borderRadius: '8px', display: 'block', cursor: 'pointer' }}
-      onClick={() => window.open(blobUrl, '_blank')}
-    />
+    <>
+      <img
+        src={blobUrl}
+        alt={name}
+        style={{ maxWidth: '280px', maxHeight: '280px', borderRadius: '8px', display: 'block', cursor: 'pointer' }}
+        onClick={() => setViewerOpen(true)}
+      />
+      {viewerOpen && <ImageViewer src={blobUrl} name={name} onClose={() => setViewerOpen(false)} />}
+    </>
   )
 }
 
