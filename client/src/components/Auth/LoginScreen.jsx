@@ -2,13 +2,14 @@ import { useState } from 'react'
 import { IconEye, IconEyeOff, IconLogin, IconUserPlus } from '@tabler/icons-react'
 import { login, register, startSync } from '../../lib/matrix'
 import { phoneToUsername } from '../../lib/phone'
+import { setMyUsername } from '../../lib/username'
 
 export default function LoginScreen({ onLogin }) {
   const [mode, setMode] = useState('login')
   const [showPass, setShowPass] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [form, setForm] = useState({ name: '', phone: '', password: '' })
+  const [form, setForm] = useState({ name: '', phone: '', password: '', username: '' })
 
   const set = (key) => (val) => setForm(f => ({ ...f, [key]: val }))
 
@@ -19,10 +20,21 @@ export default function LoginScreen({ onLogin }) {
     setLoading(true)
     setError('')
     try {
-      const username = resolveUsername(form.phone)
+      const loginUsername = resolveUsername(form.phone)
       const client = mode === 'login'
-        ? await login(username, form.password)
+        ? await login(loginUsername, form.password)
         : await register(form.name.trim(), form.phone, form.password)
+
+      // Optional: doesn't block account creation if it fails (e.g. taken
+      // in the meantime) - it can always be set later in Настройки.
+      if (mode === 'register' && form.username.trim()) {
+        try {
+          await setMyUsername(client, form.username.trim())
+        } catch (err) {
+          console.error('Username set during registration failed:', err.message)
+        }
+      }
+
       await startSync(client)
       onLogin(client)
     } catch (err) {
@@ -62,6 +74,9 @@ export default function LoginScreen({ onLogin }) {
             <Field label="Имя" value={form.name} onChange={set('name')} placeholder="Как вас зовут" autoComplete="name" />
           )}
           <Field label="Номер телефона" value={form.phone} onChange={set('phone')} placeholder="+7 999 123-45-67" autoComplete="tel" />
+          {mode === 'register' && (
+            <Field label="Юзернейм (необязательно)" value={form.username} onChange={set('username')} placeholder="например, ivan_petrov" autoComplete="off" />
+          )}
           <Field
             label="Пароль"
             value={form.password}
