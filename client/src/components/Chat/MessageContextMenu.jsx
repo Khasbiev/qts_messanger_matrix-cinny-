@@ -1,7 +1,8 @@
 import { useState, useRef, useLayoutEffect, useEffect } from 'react'
+import { IconArrowBackUp, IconArrowForward, IconCopy, IconPencil, IconTrash } from '@tabler/icons-react'
 import { QUICK_REACTIONS } from './MessageActions'
 
-function MenuItem({ onClick, children, danger }) {
+function MenuItem({ icon: Icon, onClick, children, danger }) {
   return (
     <button
       onClick={onClick}
@@ -13,6 +14,7 @@ function MenuItem({ onClick, children, danger }) {
       onMouseEnter={e => { e.currentTarget.style.background = 'var(--overlay)' }}
       onMouseLeave={e => { e.currentTarget.style.background = 'none' }}
     >
+      <Icon size={16} strokeWidth={1.8} style={{ flexShrink: 0 }} />
       {children}
     </button>
   )
@@ -70,11 +72,11 @@ export default function MessageContextMenu({ position, onClose, onReact, onReply
           </button>
         ))}
       </div>
-      <MenuItem onClick={() => run(onReply)}>↩ Ответить</MenuItem>
-      <MenuItem onClick={() => run(onForward)}>➦ Переслать</MenuItem>
-      {onCopy && <MenuItem onClick={() => run(onCopy)}>📋 Копировать текст</MenuItem>}
-      {onEdit && <MenuItem onClick={() => run(onEdit)}>✎ Редактировать</MenuItem>}
-      {onDeleteClick && <MenuItem danger onClick={() => run(onDeleteClick)}>🗑 Удалить</MenuItem>}
+      <MenuItem icon={IconArrowBackUp} onClick={() => run(onReply)}>Ответить</MenuItem>
+      <MenuItem icon={IconArrowForward} onClick={() => run(onForward)}>Переслать</MenuItem>
+      {onCopy && <MenuItem icon={IconCopy} onClick={() => run(onCopy)}>Копировать текст</MenuItem>}
+      {onEdit && <MenuItem icon={IconPencil} onClick={() => run(onEdit)}>Редактировать</MenuItem>}
+      {onDeleteClick && <MenuItem icon={IconTrash} danger onClick={() => run(onDeleteClick)}>Удалить</MenuItem>}
     </div>
   )
 }

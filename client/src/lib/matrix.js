@@ -227,10 +227,22 @@ export async function createChannel({ name, topic, inviteUserIds }) {
   return room_id
 }
 
+// Accounts are u<11 digits> (see phone.js), and Synapse's user directory
+// substring-matches the raw search term against that user_id - so without
+// a floor here, typing e.g. "1" would already surface anyone whose number
+// happens to contain a 1, turning search into a way to enumerate users by
+// guessing digits. Only applies to phone-looking input (pure digits, plus
+// common formatting chars); name/username search is unaffected.
+const MIN_PHONE_SEARCH_DIGITS = 5
+
 export async function searchUsers(term) {
   if (!_client) throw new Error('Not connected')
   const trimmed = term.trim()
   if (!trimmed) return []
+
+  const digitsOnly = trimmed.replace(/\D/g, '')
+  const isPhoneLike = digitsOnly.length > 0 && trimmed.replace(/[\s()+-]/g, '') === digitsOnly
+  if (isPhoneLike && digitsOnly.length < MIN_PHONE_SEARCH_DIGITS) return []
 
   // Accounts are registered as u<digits> (see phone.js), not the phone
   // number itself, so searching for "+7921..." against the user directory

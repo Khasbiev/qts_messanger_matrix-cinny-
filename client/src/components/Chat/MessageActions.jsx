@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { IconMoodSmile } from '@tabler/icons-react'
+import { IconMoodSmile, IconArrowBackUp, IconArrowForward, IconPencil, IconTrash } from '@tabler/icons-react'
 import EmojiPicker from './EmojiPicker'
 
 export const QUICK_REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '🙏', '🔥']
@@ -48,16 +48,16 @@ export default function MessageActions({ message, onReact, onReply, onEdit, onDe
           <IconMoodSmile size={15} strokeWidth={1.8} />
         </ActionButton>
         {onReply && (
-          <ActionButton onClick={onReply} title="Ответить">↩</ActionButton>
+          <ActionButton onClick={onReply} title="Ответить"><IconArrowBackUp size={15} strokeWidth={1.8} /></ActionButton>
         )}
         {onForward && (
-          <ActionButton onClick={onForward} title="Переслать">➦</ActionButton>
+          <ActionButton onClick={onForward} title="Переслать"><IconArrowForward size={15} strokeWidth={1.8} /></ActionButton>
         )}
         {onEdit && (
-          <ActionButton onClick={onEdit} title="Редактировать">✎</ActionButton>
+          <ActionButton onClick={onEdit} title="Редактировать"><IconPencil size={15} strokeWidth={1.8} /></ActionButton>
         )}
         {onDeleteClick && (
-          <ActionButton onClick={onDeleteClick} title="Удалить">🗑</ActionButton>
+          <ActionButton onClick={onDeleteClick} title="Удалить"><IconTrash size={15} strokeWidth={1.8} /></ActionButton>
         )}
       </div>
 
