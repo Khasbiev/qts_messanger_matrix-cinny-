@@ -1,7 +1,7 @@
 import { createClient, ClientEvent, RoomEvent } from 'matrix-js-sdk'
 import { findMentionSpans, buildMentionHtml } from './mentions'
 import { disablePush } from './push'
-import { phoneToUsername } from './phone'
+import { phoneToUsername, usernameToPhone } from './phone'
 import { searchByUsername } from './username'
 
 const HOMESERVER = import.meta.env.VITE_HOMESERVER_URL || 'https://matrix.messanger.qts.dev'
@@ -333,9 +333,15 @@ export async function getLinkPreview(url) {
 
 export function getOwnProfile() {
   if (!_client) throw new Error('Not connected')
-  const user = _client.getUser(_client.getUserId())
+  const myUserId = _client.getUserId()
+  const user = _client.getUser(myUserId)
+  // matrix-js-sdk's own User.displayName getter falls back to the raw
+  // user_id when no profile has synced yet (e.g. a brand-new account with
+  // no rooms) - that's truthy, so treat it the same as "no display name"
+  // rather than showing @u79214001880:... as someone's name.
+  const knownName = user?.displayName && user.displayName !== myUserId ? user.displayName : null
   return {
-    displayName: user?.displayName || _client.getUserId().replace('@', '').split(':')[0],
+    displayName: knownName || usernameToPhone(myUserId) || myUserId.replace('@', '').split(':')[0],
     avatarMxcUrl: user?.avatarUrl || null,
   }
 }

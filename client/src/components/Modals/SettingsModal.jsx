@@ -9,6 +9,7 @@ import { isPushSubscribed, enablePush, disablePush } from '../../lib/push'
 import { getMyUsername, setMyUsername } from '../../lib/username'
 import { needsIOSInstallPrompt } from '../../lib/platform'
 import { getTheme, setTheme } from '../../lib/theme'
+import { usernameToPhone } from '../../lib/phone'
 
 export default function SettingsModal({ client, onClose }) {
   const [showInstallHelp, setShowInstallHelp] = useState(false)
@@ -231,7 +232,7 @@ export default function SettingsModal({ client, onClose }) {
           </div>
         </div>
 
-        <Field label="Matrix ID" value={userId} />
+        <Field label="Телефон" value={usernameToPhone(userId) || userId} />
         <Field label="Сервер" value={homeserver} />
         <Field label="Устройство" value={deviceId} />
 

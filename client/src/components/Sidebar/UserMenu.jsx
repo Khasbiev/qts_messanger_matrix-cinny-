@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import { IconAddressBook, IconSettings, IconLogout } from '@tabler/icons-react'
 import { pushModal, popModal } from '../../lib/modalStack'
 import { getOwnProfile } from '../../lib/matrix'
+import { usernameToPhone } from '../../lib/phone'
 import Avatar from '../Avatar'
 
 export default function UserMenu({ client, onClose, onOpenContacts, onOpenSettings, onLogout }) {
@@ -48,7 +49,7 @@ export default function UserMenu({ client, onClose, onOpenContacts, onOpenSettin
         <Avatar mxcUrl={profile.avatarMxcUrl} label={initials} size={36} bg="var(--accent-teal)" fg="#000" style={{ fontSize: '13px', fontWeight: 700 }} />
         <div style={{ minWidth: 0 }}>
           <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{displayName}</div>
-          <div style={{ fontSize: '11px', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{userId}</div>
+          <div style={{ fontSize: '11px', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{usernameToPhone(userId) || userId}</div>
         </div>
       </div>
 

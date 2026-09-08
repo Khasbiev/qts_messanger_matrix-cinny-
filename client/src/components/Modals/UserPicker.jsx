@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { searchUsers } from '../../lib/matrix'
+import { usernameToPhone } from '../../lib/phone'
 
 export default function UserPicker({ mode = 'single', selectedIds, onChange }) {
   const [term, setTerm] = useState('')
@@ -46,7 +47,7 @@ export default function UserPicker({ mode = 'single', selectedIds, onChange }) {
         )}
         {results.map(u => {
           const isSelected = selectedIds.includes(u.user_id)
-          const label = u.display_name || u.user_id
+          const label = u.display_name || usernameToPhone(u.user_id) || u.user_id
           return (
             <div
               key={u.user_id}

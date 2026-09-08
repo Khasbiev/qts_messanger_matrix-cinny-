@@ -3,6 +3,7 @@ import { IconLoader2 } from '@tabler/icons-react'
 import Modal from './Modal'
 import { searchUsers, createOrGetDirectMessage } from '../../lib/matrix'
 import { colorFor } from '../../lib/avatarColor'
+import { usernameToPhone } from '../../lib/phone'
 
 export default function ContactsModal({ onClose, onOpenChat }) {
   const [term, setTerm] = useState('')
@@ -58,7 +59,7 @@ export default function ContactsModal({ onClose, onOpenChat }) {
           <div style={{ color: 'var(--text-muted)', fontSize: '12px', padding: '8px' }}>Никого не найдено</div>
         )}
         {results.map(u => {
-          const label = u.display_name || u.user_id
+          const label = u.display_name || usernameToPhone(u.user_id) || u.user_id
           const color = colorFor(u.user_id)
           const isOpening = opening === u.user_id
           return (
