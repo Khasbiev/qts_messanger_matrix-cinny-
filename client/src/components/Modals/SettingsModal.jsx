@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
-import { IconCamera, IconLoader2, IconBell, IconBellOff, IconDeviceMobile, IconSun, IconMoon } from '@tabler/icons-react'
+import { IconCamera, IconLoader2, IconBell, IconBellOff, IconDeviceMobile, IconSun, IconMoon, IconSparkles } from '@tabler/icons-react'
 import Modal from './Modal'
 import InstallPrompt from '../InstallPrompt'
+import WelcomeTour from '../WelcomeTour'
 import { getOwnProfile, updateDisplayName, updateAvatar, resolveMediaUrl } from '../../lib/matrix'
 import { colorFor } from '../../lib/avatarColor'
 import { isPushSubscribed, enablePush, disablePush } from '../../lib/push'
@@ -11,6 +12,7 @@ import { getTheme, setTheme } from '../../lib/theme'
 
 export default function SettingsModal({ client, onClose }) {
   const [showInstallHelp, setShowInstallHelp] = useState(false)
+  const [showTour, setShowTour] = useState(false)
   const [theme, setThemeField] = useState(getTheme)
 
   const handleSetTheme = (t) => {
@@ -266,10 +268,23 @@ export default function SettingsModal({ client, onClose }) {
           </button>
         )}
 
+        <button
+          onClick={() => setShowTour(true)}
+          style={{
+            display: 'flex', alignItems: 'center', gap: '8px', width: '100%',
+            fontSize: '14px', color: 'var(--text-primary)', background: 'var(--bg-card)',
+            border: '1px solid var(--border)', borderRadius: '7px', padding: '9px 12px',
+          }}
+        >
+          <IconSparkles size={16} />
+          Как пользоваться мессенджером
+        </button>
+
         {error && <div style={{ fontSize: '12px', color: '#ff4d4d' }}>{error}</div>}
       </div>
     </Modal>
     {showInstallHelp && <InstallPrompt onClose={() => setShowInstallHelp(false)} />}
+    {showTour && <WelcomeTour onClose={() => setShowTour(false)} />}
     </>
   )
 }

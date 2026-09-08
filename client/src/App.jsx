@@ -3,12 +3,14 @@ import Sidebar from './components/Sidebar'
 import Chat from './components/Chat'
 import LoginScreen from './components/Auth/LoginScreen'
 import InstallPrompt from './components/InstallPrompt'
+import WelcomeTour from './components/WelcomeTour'
 import { restoreSession, startSync, logout } from './lib/matrix'
 import { isModalOpen } from './lib/modalStack'
 import { needsIOSInstallPrompt } from './lib/platform'
 
 const NARROW_BREAKPOINT = 780
 const INSTALL_PROMPT_DISMISSED_KEY = 'qts_install_prompt_dismissed'
+const WELCOME_TOUR_SEEN_KEY = 'qts_welcome_tour_seen'
 
 export default function App() {
   const [client, setClient] = useState(null)
@@ -18,6 +20,7 @@ export default function App() {
   const [listVisible, setListVisible] = useState(true)
   const [isNarrow, setIsNarrow] = useState(() => window.innerWidth < NARROW_BREAKPOINT)
   const [showInstallPrompt, setShowInstallPrompt] = useState(false)
+  const [showWelcomeTour, setShowWelcomeTour] = useState(false)
 
   useEffect(() => {
     const onResize = () => setIsNarrow(window.innerWidth < NARROW_BREAKPOINT)
@@ -55,14 +58,30 @@ export default function App() {
     setClient(newClient)
   }
 
-  // Covers both a fresh login and a restored session on reload - client
-  // becomes non-null either way.
-  useEffect(() => {
-    if (!client) return
+  const maybeShowInstallPrompt = () => {
     if (needsIOSInstallPrompt() && !localStorage.getItem(INSTALL_PROMPT_DISMISSED_KEY)) {
       setShowInstallPrompt(true)
     }
+  }
+
+  // Covers both a fresh login and a restored session on reload - client
+  // becomes non-null either way. The welcome tour takes priority on a
+  // first-ever login; the install prompt (if relevant) follows once it's
+  // dismissed, rather than stacking both overlays at once.
+  useEffect(() => {
+    if (!client) return
+    if (!localStorage.getItem(WELCOME_TOUR_SEEN_KEY)) {
+      setShowWelcomeTour(true)
+    } else {
+      maybeShowInstallPrompt()
+    }
   }, [client])
+
+  const dismissWelcomeTour = () => {
+    localStorage.setItem(WELCOME_TOUR_SEEN_KEY, '1')
+    setShowWelcomeTour(false)
+    maybeShowInstallPrompt()
+  }
 
   const dismissInstallPrompt = () => {
     localStorage.setItem(INSTALL_PROMPT_DISMISSED_KEY, '1')
@@ -165,6 +184,7 @@ export default function App() {
         />
       )}
       {showNoRoomPlaceholder && <NoRoom />}
+      {showWelcomeTour && <WelcomeTour onClose={dismissWelcomeTour} />}
       {showInstallPrompt && <InstallPrompt onClose={dismissInstallPrompt} />}
     </div>
   )
