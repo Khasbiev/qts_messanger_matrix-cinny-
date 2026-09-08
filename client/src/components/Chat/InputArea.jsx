@@ -410,7 +410,7 @@ function RoundIconButton({ onClick, title, children, accent }) {
         color: accent ? '#000' : 'var(--text-muted)',
         transition: 'all 0.12s',
       }}
-      onMouseEnter={e => { if (!accent) { e.currentTarget.style.background = 'rgba(255,255,255,0.07)'; e.currentTarget.style.color = 'var(--text-primary)' } else { e.currentTarget.style.opacity = '0.85' } }}
+      onMouseEnter={e => { if (!accent) { e.currentTarget.style.background = 'var(--overlay)'; e.currentTarget.style.color = 'var(--text-primary)' } else { e.currentTarget.style.opacity = '0.85' } }}
       onMouseLeave={e => { if (!accent) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-muted)' } else { e.currentTarget.style.opacity = '1' } }}
     >
       {children}

@@ -30,7 +30,7 @@ export default function MentionAutocomplete({ members, selectedIndex, onSelect, 
             padding: '7px 8px',
             borderRadius: '6px',
             cursor: 'pointer',
-            background: i === selectedIndex ? 'rgba(255,255,255,0.07)' : 'transparent',
+            background: i === selectedIndex ? 'var(--overlay)' : 'transparent',
           }}
         >
           <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: 'var(--bg-card)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 600, color: 'var(--text-secondary)', flexShrink: 0 }}>

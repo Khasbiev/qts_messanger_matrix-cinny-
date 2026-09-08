@@ -8,4 +8,34 @@
   --text-secondary: #AAAAAA;
   --text-muted:     #555555;
   --border:         #1E1E20;
+
+  /* Own message bubble - hand-tuned dark green, not a tint of --accent-teal */
+  --bg-own-message:     #0D3326;
+  --border-own-message: #1C4535;
+
+  /* Subtle hover backgrounds - lighten on dark, darken on light */
+  --overlay:        rgba(255, 255, 255, 0.07);
+  --overlay-subtle: rgba(255, 255, 255, 0.04);
+}
+
+[data-theme="light"] {
+  --bg-primary:     #F4F5F6;
+  --bg-surface:     #FFFFFF;
+  --bg-card:        #EEF0F2;
+  /* Darkened from the dark-theme neon mint - #00E5B0 is ~3:1 contrast on
+     white (fails AA for text), this is ~4.5:1 while still reading as the
+     same brand teal. Also used as button/avatar backgrounds under black
+     text, which stays readable at this lightness too. */
+  --accent-teal:    #00875A;
+  --accent-orange:  #D9480F;
+  --text-primary:   #16181A;
+  --text-secondary: #5B6167;
+  --text-muted:     #9AA0A6;
+  --border:         #E1E3E6;
+
+  --bg-own-message:     #E1F5EC;
+  --border-own-message: #A8DFC6;
+
+  --overlay:        rgba(0, 0, 0, 0.05);
+  --overlay-subtle: rgba(0, 0, 0, 0.03);
 }

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { IconCamera, IconLoader2, IconBell, IconBellOff, IconDeviceMobile } from '@tabler/icons-react'
+import { IconCamera, IconLoader2, IconBell, IconBellOff, IconDeviceMobile, IconSun, IconMoon } from '@tabler/icons-react'
 import Modal from './Modal'
 import InstallPrompt from '../InstallPrompt'
 import { getOwnProfile, updateDisplayName, updateAvatar, resolveMediaUrl } from '../../lib/matrix'
@@ -7,9 +7,16 @@ import { colorFor } from '../../lib/avatarColor'
 import { isPushSubscribed, enablePush, disablePush } from '../../lib/push'
 import { getMyUsername, setMyUsername } from '../../lib/username'
 import { needsIOSInstallPrompt } from '../../lib/platform'
+import { getTheme, setTheme } from '../../lib/theme'
 
 export default function SettingsModal({ client, onClose }) {
   const [showInstallHelp, setShowInstallHelp] = useState(false)
+  const [theme, setThemeField] = useState(getTheme)
+
+  const handleSetTheme = (t) => {
+    setTheme(t)
+    setThemeField(t)
+  }
   const userId = client?.getUserId() || ''
   const homeserver = client?.getHomeserverUrl?.() || ''
   const deviceId = client?.getDeviceId?.() || ''
@@ -161,6 +168,11 @@ export default function SettingsModal({ client, onClose }) {
           </div>
         </div>
 
+        <div style={{ display: 'flex', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '7px', padding: '3px' }}>
+          <ThemeButton icon={IconMoon} label="Тёмная" active={theme === 'dark'} onClick={() => handleSetTheme('dark')} />
+          <ThemeButton icon={IconSun} label="Светлая" active={theme === 'light'} onClick={() => handleSetTheme('light')} />
+        </div>
+
         <div>
           <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
             Имя
@@ -259,6 +271,23 @@ export default function SettingsModal({ client, onClose }) {
     </Modal>
     {showInstallHelp && <InstallPrompt onClose={() => setShowInstallHelp(false)} />}
     </>
+  )
+}
+
+function ThemeButton({ icon: Icon, label, active, onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+        padding: '8px 0', borderRadius: '5px', fontSize: '13px', fontWeight: 600,
+        background: active ? 'var(--accent-teal)' : 'transparent',
+        color: active ? '#000' : 'var(--text-secondary)',
+      }}
+    >
+      <Icon size={15} strokeWidth={2} />
+      {label}
+    </button>
   )
 }
 

@@ -40,7 +40,7 @@ export default function LinkPreview({ url, spaced }) {
       style={{
         display: 'flex', gap: '10px', textDecoration: 'none',
         border: '1px solid var(--border)', borderRadius: '10px',
-        padding: '8px', background: 'rgba(255,255,255,0.02)',
+        padding: '8px', background: 'var(--overlay-subtle)',
         marginTop: spaced ? '8px' : '0',
       }}
     >

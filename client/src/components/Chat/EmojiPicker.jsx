@@ -51,7 +51,7 @@ export default function EmojiPicker({ onPick, onClose, style }) {
           key={e}
           onClick={() => { onPick(e); onClose() }}
           style={{ width: '34px', height: '34px', borderRadius: '6px', fontSize: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-          onMouseEnter={ev => ev.currentTarget.style.background = 'rgba(255,255,255,0.07)'}
+          onMouseEnter={ev => ev.currentTarget.style.background = 'var(--overlay)'}
           onMouseLeave={ev => ev.currentTarget.style.background = 'none'}
         >
           {e}

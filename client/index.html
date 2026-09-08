@@ -18,6 +18,15 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
     <title>qts.dev messenger</title>
+    <script>
+      // Applied before first paint so a saved light-theme preference
+      // doesn't flash dark for a frame on reload.
+      try {
+        if (localStorage.getItem('qts_theme') === 'light') {
+          document.documentElement.setAttribute('data-theme', 'light')
+        }
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>

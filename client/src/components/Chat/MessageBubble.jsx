@@ -208,7 +208,7 @@ function DownloadButton({ mxcUrl, name }) {
         flexShrink: 0,
         transition: 'all 0.12s',
       }}
-      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; e.currentTarget.style.color = 'var(--text-primary)' }}
+      onMouseEnter={e => { e.currentTarget.style.background = 'var(--overlay)'; e.currentTarget.style.color = 'var(--text-primary)' }}
       onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = 'var(--text-muted)' }}
     >
       {downloading ? <IconLoader2 size={15} strokeWidth={2} className="spin" /> : <IconDownload size={15} strokeWidth={2} />}
@@ -367,9 +367,9 @@ export default function MessageBubble({ message, roomId, onEdit, onReply, highli
 
         {/* Bubble */}
         <div style={{
-          background: message.mentionsMe ? 'rgba(255, 107, 53, 0.08)' : (isOwn ? '#0d3326' : 'var(--bg-card)'),
-          border: '1px solid ' + (isOwn ? '#1c4535' : 'var(--border)'),
-          borderLeft: message.mentionsMe ? '3px solid var(--accent-orange)' : ('1px solid ' + (isOwn ? '#1c4535' : 'var(--border)')),
+          background: message.mentionsMe ? 'rgba(255, 107, 53, 0.08)' : (isOwn ? 'var(--bg-own-message)' : 'var(--bg-card)'),
+          border: '1px solid ' + (isOwn ? 'var(--border-own-message)' : 'var(--border)'),
+          borderLeft: message.mentionsMe ? '3px solid var(--accent-orange)' : ('1px solid ' + (isOwn ? 'var(--border-own-message)' : 'var(--border)')),
           borderRadius: isOwn ? '12px 12px 3px 12px' : '12px 12px 12px 3px',
           padding: '8px 12px',
         }}>

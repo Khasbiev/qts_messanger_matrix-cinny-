@@ -20,7 +20,7 @@ export default function ChatItem({ item, type, isActive, onSelect }) {
         transition: 'background 0.1s',
         userSelect: 'none',
       }}
-      onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = 'rgba(255,255,255,0.04)' }}
+      onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = 'var(--overlay-subtle)' }}
       onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'transparent' }}
     >
       {/* Avatar */}

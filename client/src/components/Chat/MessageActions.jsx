@@ -14,7 +14,7 @@ function ActionButton({ onClick, title, children }) {
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         color: 'var(--text-muted)', background: 'none',
       }}
-      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; e.currentTarget.style.color = 'var(--text-primary)' }}
+      onMouseEnter={e => { e.currentTarget.style.background = 'var(--overlay)'; e.currentTarget.style.color = 'var(--text-primary)' }}
       onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = 'var(--text-muted)' }}
     >
       {children}
@@ -74,7 +74,7 @@ export default function MessageActions({ message, onReact, onReply, onEdit, onDe
               key={e}
               onClick={() => pick(e)}
               style={{ width: '28px', height: '28px', borderRadius: '6px', fontSize: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-              onMouseEnter={ev => ev.currentTarget.style.background = 'rgba(255,255,255,0.07)'}
+              onMouseEnter={ev => ev.currentTarget.style.background = 'var(--overlay)'}
               onMouseLeave={ev => ev.currentTarget.style.background = 'none'}
             >
               {e}

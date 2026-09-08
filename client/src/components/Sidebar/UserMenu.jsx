@@ -63,7 +63,7 @@ function MenuItem({ icon: Icon, label, onClick, danger }) {
     <button
       onClick={onClick}
       style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', color: danger ? '#ff6b6b' : 'var(--text-primary)', fontSize: '13px', textAlign: 'left' }}
-      onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
+      onMouseEnter={e => e.currentTarget.style.background = 'var(--overlay-subtle)'}
       onMouseLeave={e => e.currentTarget.style.background = 'none'}
     >
       <Icon size={16} strokeWidth={2} />
