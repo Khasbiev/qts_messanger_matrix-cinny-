@@ -296,6 +296,17 @@ export default function InputArea({ client, room, editingMessage, onCancelEdit, 
         />
       )}
 
+      {recording?.kind === 'video' && (
+        <div style={{
+          position: 'absolute', bottom: '100%', left: '50%', transform: 'translateX(-50%)',
+          marginBottom: '14px', zIndex: 70,
+          width: '220px', height: '220px', borderRadius: '50%', overflow: 'hidden',
+          background: '#000', boxShadow: '0 8px 28px rgba(0,0,0,0.55), 0 0 0 3px #ff4d4d',
+        }}>
+          <video ref={videoPreviewRef} autoPlay muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        </div>
+      )}
+
       {(editingMessage || replyingTo) && (
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 12px', marginBottom: '4px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '10px', borderLeft: '3px solid var(--accent-teal)' }}>
           <div style={{ flex: 1, minWidth: 0 }}>
@@ -330,9 +341,6 @@ export default function InputArea({ client, room, editingMessage, onCancelEdit, 
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
               <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#ff4d4d', flexShrink: 0, animation: 'pulse 1s ease-in-out infinite' }} />
               <span style={{ fontSize: '13px', color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums' }}>{formatTimer(elapsedMs)}</span>
-              {recording.kind === 'video' && (
-                <video ref={videoPreviewRef} autoPlay muted playsInline style={{ width: '28px', height: '28px', borderRadius: '50%', objectFit: 'cover', marginLeft: '4px' }} />
-              )}
             </div>
 
             <RoundIconButton onClick={handleSendRecording} title="Отправить" accent>
