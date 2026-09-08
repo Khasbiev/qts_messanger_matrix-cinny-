@@ -1,8 +1,10 @@
 import { useState } from 'react'
-import { IconEye, IconEyeOff, IconLogin, IconUserPlus } from '@tabler/icons-react'
+import { IconEye, IconEyeOff, IconLogin, IconUserPlus, IconDeviceMobile } from '@tabler/icons-react'
 import { login, register, startSync } from '../../lib/matrix'
 import { phoneToUsername } from '../../lib/phone'
 import { setMyUsername } from '../../lib/username'
+import { needsIOSInstallPrompt } from '../../lib/platform'
+import InstallPrompt from '../InstallPrompt'
 
 export default function LoginScreen({ onLogin }) {
   const [mode, setMode] = useState('login')
@@ -10,6 +12,7 @@ export default function LoginScreen({ onLogin }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [form, setForm] = useState({ name: '', phone: '', password: '', username: '' })
+  const [showInstallHelp, setShowInstallHelp] = useState(false)
 
   const set = (key) => (val) => setForm(f => ({ ...f, [key]: val }))
 
@@ -95,6 +98,21 @@ export default function LoginScreen({ onLogin }) {
             }
           />
 
+          {mode === 'register' && needsIOSInstallPrompt() && (
+            <button
+              type="button"
+              onClick={() => setShowInstallHelp(true)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '8px', textAlign: 'left',
+                fontSize: '12px', color: 'var(--accent-teal)', background: 'rgba(0,229,176,0.08)',
+                border: '1px solid rgba(0,229,176,0.2)', borderRadius: '6px', padding: '8px 12px',
+              }}
+            >
+              <IconDeviceMobile size={16} style={{ flexShrink: 0 }} />
+              <span>На iPhone? Установите как приложение — иначе не будет уведомлений</span>
+            </button>
+          )}
+
           {error && (
             <div style={{ fontSize: '12px', color: '#ff4d4d', padding: '8px 12px', background: 'rgba(255,77,77,0.08)', borderRadius: '6px', border: '1px solid rgba(255,77,77,0.2)' }}>
               {error}
@@ -136,6 +154,7 @@ export default function LoginScreen({ onLogin }) {
           </button>
         </form>
       </div>
+      {showInstallHelp && <InstallPrompt onClose={() => setShowInstallHelp(false)} />}
     </div>
   )
 }
