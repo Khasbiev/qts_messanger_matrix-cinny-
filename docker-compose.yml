@@ -1,8 +1,11 @@
 # ═══════════════════════════════════════════════════════════════
 # QTS Messenger — Docker Compose
 # Domains:
-#   messanger.qts.dev        → client web app (+ auth/push gateways under /api/)
-#   matrix.messanger.qts.dev → Synapse homeserver
+#   messenger.qts.dev (WEB_DOMAIN) → client web app (+ auth/push gateways under /api/)
+#   matrix.messanger.qts.dev (SYNAPSE_DOMAIN, via SERVER_NAME) → Synapse homeserver
+#   messanger.qts.dev (SERVER_NAME) → old misspelled domain, kept ONLY because
+#     it's Synapse's server_name (baked into every user's Matrix ID). Not
+#     served as the web app anymore — nginx.conf redirects it to WEB_DOMAIN.
 # ═══════════════════════════════════════════════════════════════
 
 services:
@@ -61,8 +64,8 @@ services:
         # Left unset in prod — matrix.js falls back to the hardcoded
         # production homeserver default.
         VITE_HOMESERVER_URL: ""
-        VITE_AUTH_GATEWAY_URL: "https://${SERVER_NAME}/api/auth"
-        VITE_PUSH_GATEWAY_URL: "https://${SERVER_NAME}/api/push"
+        VITE_AUTH_GATEWAY_URL: "https://${WEB_DOMAIN}/api/auth"
+        VITE_PUSH_GATEWAY_URL: "https://${WEB_DOMAIN}/api/push"
         # Synapse calls this one server-to-server (container network),
         # never the browser, so an internal docker DNS name is correct here.
         VITE_PUSH_GATEWAY_NOTIFY_URL: "http://push-gateway:4000"

@@ -10,8 +10,15 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+# SERVER_NAME is Synapse's server_name — baked into every Matrix ID
+# (@user:SERVER_NAME) once accounts exist. On THIS production instance it's
+# pinned to the old misspelled domain and must stay that way; a brand-new
+# install can safely use the correctly spelled one.
 SERVER_NAME="messanger.qts.dev"
 SYNAPSE_DOMAIN="matrix.messanger.qts.dev"
+# WEB_DOMAIN is where the client web app itself is served — independent of
+# SERVER_NAME, so it can use the correct spelling even when SERVER_NAME can't.
+WEB_DOMAIN="messenger.qts.dev"
 
 cd "$PROJECT_DIR"
 
@@ -29,6 +36,7 @@ step()    { echo -e "\n${GREEN}═══ $1 ═══${NC}"; }
 echo ""
 echo "═══════════════════════════════════════════════════════"
 echo "  QTS Messenger — Deployment"
+echo "  Web app     : $WEB_DOMAIN"
 echo "  Server name : $SERVER_NAME"
 echo "  Synapse API : $SYNAPSE_DOMAIN"
 echo "═══════════════════════════════════════════════════════"
@@ -79,6 +87,7 @@ else
 
 SERVER_NAME=${SERVER_NAME}
 SYNAPSE_DOMAIN=${SYNAPSE_DOMAIN}
+WEB_DOMAIN=${WEB_DOMAIN}
 
 POSTGRES_DB=synapse
 POSTGRES_USER=synapse_user
@@ -92,6 +101,17 @@ CERTBOT_EMAIL=${CERTBOT_EMAIL}
 EOF
     info ".env created with generated secrets"
     source .env
+fi
+
+# WEB_DOMAIN may be missing on an existing .env from before the web app's
+# domain was split out from SERVER_NAME — top it up rather than assuming
+# it's there (this is what actually fixes the misspelled-domain issue).
+# Checked against the file directly, not the shell var, since WEB_DOMAIN
+# already has a script-level default above even when .env lacks the line.
+if ! grep -q '^WEB_DOMAIN=' .env; then
+    WEB_DOMAIN="messenger.qts.dev"
+    info "Adding WEB_DOMAIN=${WEB_DOMAIN} to .env..."
+    echo "WEB_DOMAIN=${WEB_DOMAIN}" >> .env
 fi
 
 # VAPID keys (Web Push) may be missing even on an existing .env from before
@@ -170,10 +190,12 @@ info "Directories ready"
 step "Step 5: Obtaining SSL certificates"
 
 CERT_PATH="nginx/certbot/conf/live/${SERVER_NAME}/fullchain.pem"
+WEB_CERT_PATH="nginx/certbot/conf/live/${WEB_DOMAIN}/fullchain.pem"
+NEED_TEMP_NGINX=false
+[ -f "$CERT_PATH" ] || NEED_TEMP_NGINX=true
+[ -f "$WEB_CERT_PATH" ] || NEED_TEMP_NGINX=true
 
-if [ -f "$CERT_PATH" ]; then
-    warn "SSL certificates already exist — skipping (delete nginx/certbot/conf to renew)"
-else
+if [ "$NEED_TEMP_NGINX" = true ]; then
     info "Starting temporary HTTP server for ACME challenge..."
     # Clean up a leftover container from a previous interrupted run —
     # otherwise `docker run --name matrix-nginx-init` below fails on
@@ -187,7 +209,11 @@ else
         nginx:alpine
 
     sleep 3
+fi
 
+if [ -f "$CERT_PATH" ]; then
+    warn "SSL certificate for ${SERVER_NAME} already exists — skipping (delete nginx/certbot/conf to renew)"
+else
     info "Requesting certificate for ${SERVER_NAME} and ${SYNAPSE_DOMAIN}..."
     # Single cert with both domains as SANs (stored under the first domain name)
     docker run --rm \
@@ -202,10 +228,31 @@ else
             -d "${SERVER_NAME}" \
             -d "${SYNAPSE_DOMAIN}"
 
+    info "SSL certificate for ${SERVER_NAME} obtained"
+fi
+
+if [ -f "$WEB_CERT_PATH" ]; then
+    warn "SSL certificate for ${WEB_DOMAIN} already exists — skipping (delete nginx/certbot/conf to renew)"
+else
+    info "Requesting certificate for ${WEB_DOMAIN}..."
+    # Requires DNS for WEB_DOMAIN to already point at this server.
+    docker run --rm \
+        -v "$(pwd)/nginx/certbot/conf:/etc/letsencrypt" \
+        -v "$(pwd)/nginx/certbot/www:/var/www/certbot" \
+        certbot/certbot certonly \
+            --webroot \
+            --webroot-path=/var/www/certbot \
+            --email "${CERTBOT_EMAIL}" \
+            --agree-tos \
+            --no-eff-email \
+            -d "${WEB_DOMAIN}"
+
+    info "SSL certificate for ${WEB_DOMAIN} obtained"
+fi
+
+if [ "$NEED_TEMP_NGINX" = true ]; then
     info "Stopping temporary nginx..."
     docker stop matrix-nginx-init && docker rm matrix-nginx-init
-
-    info "SSL certificates obtained"
 fi
 
 
@@ -252,7 +299,7 @@ fi
 
 # Check the web client is reachable
 echo -n "  Web client... "
-if curl -sf "https://${SERVER_NAME}" > /dev/null 2>&1; then
+if curl -sf "https://${WEB_DOMAIN}" > /dev/null 2>&1; then
     echo -e "${GREEN}OK${NC}"
 else
     echo -e "${YELLOW}not responding — check: docker logs matrix-client${NC}"
@@ -260,7 +307,7 @@ fi
 
 # Check auth-gateway is reachable
 echo -n "  Auth gateway... "
-if curl -sf "https://${SERVER_NAME}/api/auth/health" > /dev/null 2>&1; then
+if curl -sf "https://${WEB_DOMAIN}/api/auth/health" > /dev/null 2>&1; then
     echo -e "${GREEN}OK${NC}"
 else
     echo -e "${YELLOW}not responding — check: docker logs matrix-auth-gateway${NC}"
@@ -268,10 +315,19 @@ fi
 
 # Check push-gateway is reachable
 echo -n "  Push gateway... "
-if curl -sf "https://${SERVER_NAME}/api/push/health" > /dev/null 2>&1; then
+if curl -sf "https://${WEB_DOMAIN}/api/push/health" > /dev/null 2>&1; then
     echo -e "${GREEN}OK${NC}"
 else
     echo -e "${YELLOW}not responding — check: docker logs matrix-push-gateway${NC}"
+fi
+
+# Check the old domain redirects to the new one
+echo -n "  Old domain redirect... "
+REDIRECT_TARGET=$(curl -s -o /dev/null -w '%{redirect_url}' "https://${SERVER_NAME}" 2>/dev/null || echo "")
+if [[ "$REDIRECT_TARGET" == "https://${WEB_DOMAIN}"* ]]; then
+    echo -e "${GREEN}OK${NC} (→ ${REDIRECT_TARGET})"
+else
+    echo -e "${YELLOW}unexpected: ${REDIRECT_TARGET}${NC}"
 fi
 
 
@@ -283,7 +339,7 @@ echo "════════════════════════�
 echo -e "${GREEN}  DEPLOYMENT COMPLETE!${NC}"
 echo "═══════════════════════════════════════════════════════"
 echo ""
-echo "  Web client  : https://${SERVER_NAME}"
+echo "  Web client  : https://${WEB_DOMAIN}"
 echo "  Synapse API : https://${SYNAPSE_DOMAIN}"
 echo ""
 echo "  Next step: create your admin account:"
