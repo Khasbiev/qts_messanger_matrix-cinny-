@@ -21,7 +21,6 @@ export default function SettingsModal({ client, onClose }) {
     setThemeField(t)
   }
   const userId = client?.getUserId() || ''
-  const homeserver = client?.getHomeserverUrl?.() || ''
   const deviceId = client?.getDeviceId?.() || ''
   const color = colorFor(userId)
 
@@ -233,7 +232,6 @@ export default function SettingsModal({ client, onClose }) {
         </div>
 
         <Field label="Телефон" value={usernameToPhone(userId) || userId} />
-        <Field label="Сервер" value={homeserver} />
         <Field label="Устройство" value={deviceId} />
 
         <div>
