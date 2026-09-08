@@ -161,6 +161,7 @@ export default function App() {
           navMode={navMode}
           onNav={handleNav}
           jumpToEventId={jumpToEventId}
+          isNarrow={isNarrow}
         />
       )}
       {showNoRoomPlaceholder && <NoRoom />}

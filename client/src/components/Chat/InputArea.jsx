@@ -17,7 +17,7 @@ function formatTimer(ms) {
   return `${m}:${s.toString().padStart(2, '0')}`
 }
 
-export default function InputArea({ client, room, editingMessage, onCancelEdit, replyingTo, onCancelReply, onFiles, uploading, uploadError, onDismissUploadError }) {
+export default function InputArea({ client, room, isNarrow, editingMessage, onCancelEdit, replyingTo, onCancelReply, onFiles, uploading, uploadError, onDismissUploadError }) {
   const [value, setValue] = useState('')
   const [showEmoji, setShowEmoji] = useState(false)
   const [recordingBusy, setRecordingBusy] = useState(false)
@@ -373,9 +373,11 @@ export default function InputArea({ client, room, editingMessage, onCancelEdit, 
               </RoundIconButton>
             ) : (
               <>
-                <RoundIconButton onClick={() => handleStartRecording('video')} title="Видеосообщение">
-                  <IconVideo size={18} strokeWidth={1.8} />
-                </RoundIconButton>
+                {isNarrow && (
+                  <RoundIconButton onClick={() => handleStartRecording('video')} title="Видеосообщение">
+                    <IconVideo size={18} strokeWidth={1.8} />
+                  </RoundIconButton>
+                )}
                 <RoundIconButton onClick={() => handleStartRecording('voice')} title="Голосовое сообщение">
                   <IconMicrophone size={18} strokeWidth={1.8} />
                 </RoundIconButton>

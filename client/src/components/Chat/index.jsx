@@ -4,7 +4,7 @@ import MessageList from './MessageList'
 import InputArea from './InputArea'
 import { uploadFile } from '../../lib/matrix'
 
-export default function Chat({ client, room, navMode, onNav, jumpToEventId }) {
+export default function Chat({ client, room, navMode, onNav, jumpToEventId, isNarrow }) {
   const [editingMessage, setEditingMessage] = useState(null)
   const [replyingTo, setReplyingTo] = useState(null)
   const [uploading, setUploading] = useState(false)
@@ -126,6 +126,7 @@ export default function Chat({ client, room, navMode, onNav, jumpToEventId }) {
       <InputArea
         client={client}
         room={room}
+        isNarrow={isNarrow}
         editingMessage={editingMessage}
         onCancelEdit={() => setEditingMessage(null)}
         replyingTo={replyingTo}
