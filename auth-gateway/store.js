@@ -52,10 +52,10 @@ export function getUsernameForUser(userId) {
   return null
 }
 
-export function searchUsernames(term, limit = 20) {
+// Exact match only (like Telegram's @handle lookup) - no partial/substring
+// matching, so this never doubles as a name-search backdoor.
+export function searchUsernames(term) {
   const data = load()
-  const needle = term.toLowerCase()
-  return Object.values(data)
-    .filter(v => v.username.toLowerCase().includes(needle))
-    .slice(0, limit)
+  const match = data[term.toLowerCase()]
+  return match ? [match] : []
 }

@@ -44,7 +44,7 @@ export default function ContactsModal({ onClose, onOpenChat }) {
       <input
         value={term}
         onChange={e => setTerm(e.target.value)}
-        placeholder="Поиск пользователя..."
+        placeholder="Юзернейм или номер телефона..."
         style={{ width: '100%', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '7px', padding: '9px 12px', color: 'var(--text-primary)', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }}
       />
 

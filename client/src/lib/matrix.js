@@ -244,21 +244,26 @@ export async function searchUsers(term) {
   const isPhoneLike = digitsOnly.length > 0 && trimmed.replace(/[\s()+-]/g, '') === digitsOnly
   if (isPhoneLike && digitsOnly.length < MIN_PHONE_SEARCH_DIGITS) return []
 
-  // Accounts are registered as u<digits> (see phone.js), not the phone
-  // number itself, so searching for "+7921..." against the user directory
-  // never matches anything - also try the normalized username.
-  const phoneUsername = phoneToUsername(trimmed)
-  const terms = phoneUsername && phoneUsername !== trimmed ? [trimmed, phoneUsername] : [trimmed]
-
   const byUserId = new Map()
-  for (const t of terms) {
-    const { results } = await _client.searchUserDirectory({ term: t, limit: 50 })
-    for (const u of results) byUserId.set(u.user_id, u)
+
+  // Display-name search is deliberately not supported (product decision) -
+  // Synapse's user directory matches display_name too, so it's only ever
+  // queried for phone-number lookups, never for arbitrary text.
+  if (isPhoneLike) {
+    // Accounts are registered as u<digits> (see phone.js), not the phone
+    // number itself, so searching for "+7921..." against the user directory
+    // never matches anything - also try the normalized username.
+    const phoneUsername = phoneToUsername(trimmed)
+    const terms = phoneUsername && phoneUsername !== trimmed ? [trimmed, phoneUsername] : [trimmed]
+    for (const t of terms) {
+      const { results } = await _client.searchUserDirectory({ term: t, limit: 50 })
+      for (const u of results) byUserId.set(u.user_id, u)
+    }
   }
 
-  // Usernames (a separate, user-chosen handle - see lib/username.js) live
-  // outside Synapse's own directory, so they need their own lookup, merged
-  // in here. Synapse's search results already carry a display_name; fetch
+  // Usernames (a separate, user-chosen handle - see lib/username.js) require
+  // an exact match, like Telegram's @handle lookup - no partial/substring
+  // matching. Synapse's search results already carry a display_name; fetch
   // the same for username-only hits so both render identically.
   const usernameHits = await searchByUsername(_client, trimmed).catch(() => [])
   await Promise.all(usernameHits.map(async ({ user_id, username }) => {

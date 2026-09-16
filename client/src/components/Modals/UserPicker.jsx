@@ -37,7 +37,7 @@ export default function UserPicker({ mode = 'single', selectedIds, onChange }) {
       <input
         value={term}
         onChange={e => setTerm(e.target.value)}
-        placeholder="Поиск пользователя..."
+        placeholder="Юзернейм или номер телефона..."
         style={{ width: '100%', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '7px', padding: '9px 12px', color: 'var(--text-primary)', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }}
       />
       <div style={{ marginTop: '10px', maxHeight: '220px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '2px' }}>
