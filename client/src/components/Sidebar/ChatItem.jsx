@@ -1,13 +1,40 @@
+import { useRef } from 'react'
+import { IconPinFilled } from '@tabler/icons-react'
 import { colorFor } from '../../lib/avatarColor'
 import Avatar from '../Avatar'
 
-export default function ChatItem({ item, type, isActive, onSelect }) {
+const LONG_PRESS_MS = 500
+
+export default function ChatItem({ item, type, isActive, pinned, onSelect, onContextMenu }) {
   const color = colorFor(item.id)
   const avatarLabel = type === 'channel' ? `#${item.name.slice(0, 1).toUpperCase()}` : item.avatar
+  const longPressTimer = useRef(null)
+  const longPressFired = useRef(false)
+
+  const handleTouchStart = (e) => {
+    if (!onContextMenu) return
+    const touch = e.touches[0]
+    longPressTimer.current = setTimeout(() => {
+      longPressFired.current = true
+      onContextMenu({ preventDefault: () => {}, clientX: touch.clientX, clientY: touch.clientY })
+    }, LONG_PRESS_MS)
+  }
+  const cancelLongPress = () => clearTimeout(longPressTimer.current)
+  const handleClick = (e) => {
+    // Swallow the click mobile browsers fire right after the touchend that
+    // follows a long-press - otherwise the just-opened context menu's
+    // target chat would also get selected/navigated to underneath it.
+    if (longPressFired.current) { longPressFired.current = false; return }
+    onSelect(e)
+  }
 
   return (
     <div
-      onClick={onSelect}
+      onClick={handleClick}
+      onContextMenu={onContextMenu}
+      onTouchStart={handleTouchStart}
+      onTouchMove={cancelLongPress}
+      onTouchEnd={cancelLongPress}
       style={{
         display: 'flex',
         alignItems: 'center',
@@ -67,7 +94,9 @@ export default function ChatItem({ item, type, isActive, onSelect }) {
 
       {/* Time + badge */}
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '5px', flexShrink: 0 }}>
-        {item.time && (
+        {pinned ? (
+          <IconPinFilled size={13} color="var(--text-muted)" />
+        ) : item.time && (
           <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{item.time}</span>
         )}
         {item.unread > 0 && <Badge count={item.unread} />}

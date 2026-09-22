@@ -8,7 +8,8 @@ import NewDmModal from '../Modals/NewDmModal'
 import NewChannelModal from '../Modals/NewChannelModal'
 import SettingsModal from '../Modals/SettingsModal'
 import ContactsModal from '../Modals/ContactsModal'
-import { waitForRoom, isDirectRoom, getFolders, roomsForFolder } from '../../lib/matrix'
+import { waitForRoom, isDirectRoom, getFolders, roomsForFolder, setRoomInFolder, setRoomPinned } from '../../lib/matrix'
+import ChatItemContextMenu from './ChatItemContextMenu'
 import { formatChatTime } from '../../lib/formatTime'
 import FolderTabs from './FolderTabs'
 import FoldersModal from '../Modals/FoldersModal'
@@ -28,15 +29,6 @@ function getPreview(room) {
     return { text, time: formatChatTime(ev.getTs()) }
   }
   return { text: '', time: '' }
-}
-
-function sortedRooms(rooms) {
-  // getRooms() includes rooms we've left (matrix-js-sdk keeps them
-  // around locally until forgotten) — left rooms aren't a chat anymore,
-  // just leftover history, so they don't belong in the room list.
-  return rooms
-    .filter(room => room.getMyMembership() === 'join')
-    .sort((a, b) => b.getLastActiveTimestamp() - a.getLastActiveTimestamp())
 }
 
 export default function Sidebar({ client, activeRoom, onRoomSelect, onLogout, fullWidth }) {
@@ -63,6 +55,19 @@ export default function Sidebar({ client, activeRoom, onRoomSelect, onLogout, fu
   const [showSettings, setShowSettings] = useState(false)
   const [showContacts, setShowContacts] = useState(false)
   const [foldersModal, setFoldersModal] = useState(null) // null | { seedRoomId?: string }
+  const [contextMenu, setContextMenu] = useState(null) // null | { room, x, y }
+
+  const handleTogglePin = () => {
+    if (!contextMenu) return
+    const { room } = contextMenu
+    const alreadyPinned = activeFolder.pinnedRoomIds?.includes(room.roomId)
+    setRoomPinned(activeFolderId, room.roomId, !alreadyPinned).then(refresh).catch(err => console.error('Pin toggle failed:', err))
+  }
+
+  const handleToggleFolder = (folderId, inFolder) => {
+    if (!contextMenu) return
+    setRoomInFolder(folderId, contextMenu.room.roomId, inFolder).then(refresh).catch(err => console.error('Folder toggle failed:', err))
+  }
 
   const handleSearchSelect = (room, opts) => {
     onRoomSelect(room, opts)
@@ -169,7 +174,7 @@ export default function Sidebar({ client, activeRoom, onRoomSelect, onLogout, fu
           <SearchResults client={client} query={query} onRoomSelect={handleSearchSelect} />
         ) : (
           <div style={{ flex: 1, minWidth: 0, minHeight: 0, overflowY: 'auto', padding: '8px 0' }}>
-            {rooms.map(({ room }) => {
+            {rooms.map(({ room, pinned }) => {
               const isDm = isDirectRoom(client, room.roomId)
               const other = isDm ? room.getJoinedMembers().find(m => m.userId !== client.getUserId()) : null
               const name = isDm ? (other?.name || room.name) : room.name
@@ -189,7 +194,9 @@ export default function Sidebar({ client, activeRoom, onRoomSelect, onLogout, fu
                   }}
                   type={isDm ? 'dm' : 'channel'}
                   isActive={activeRoom?.roomId === room.roomId}
+                  pinned={pinned}
                   onSelect={() => onRoomSelect(room)}
+                  onContextMenu={e => { e.preventDefault(); setContextMenu({ room, x: e.clientX, y: e.clientY }) }}
                 />
               )
             })}
@@ -221,6 +228,18 @@ export default function Sidebar({ client, activeRoom, onRoomSelect, onLogout, fu
           seedRoomId={foldersModal.seedRoomId}
           onClose={() => setFoldersModal(null)}
           onChanged={refresh}
+        />
+      )}
+      {contextMenu && (
+        <ChatItemContextMenu
+          room={contextMenu.room}
+          folders={folders}
+          pinnedInActive={activeFolder.pinnedRoomIds?.includes(contextMenu.room.roomId)}
+          position={contextMenu}
+          onClose={() => setContextMenu(null)}
+          onTogglePin={handleTogglePin}
+          onToggleFolder={handleToggleFolder}
+          onCreateFolder={() => setFoldersModal({ seedRoomId: contextMenu.room.roomId })}
         />
       )}
 
