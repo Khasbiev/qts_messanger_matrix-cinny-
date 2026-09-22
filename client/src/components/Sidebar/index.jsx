@@ -154,51 +154,53 @@ export default function Sidebar({ client, activeRoom, onRoomSelect, onLogout, fu
         />
       )}
 
-      {/* Room list / search results */}
-      {!query.trim() && (
-        <FolderTabs
-          folders={folders}
-          activeFolderId={activeFolderId}
-          onSelect={setActiveFolderId}
-          onCreateClick={() => setFoldersModal({})}
-        />
-      )}
+      {/* Folder rail (left, vertical) + room list / search results */}
+      <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
+        {!query.trim() && (
+          <FolderTabs
+            folders={folders}
+            activeFolderId={activeFolderId}
+            onSelect={setActiveFolderId}
+            onCreateClick={() => setFoldersModal({})}
+          />
+        )}
 
-      {query.trim() ? (
-        <SearchResults client={client} query={query} onRoomSelect={handleSearchSelect} />
-      ) : (
-        <div style={{ flex: 1, overflowY: 'auto', padding: '8px 0' }}>
-          {rooms.map(({ room }) => {
-            const isDm = isDirectRoom(client, room.roomId)
-            const other = isDm ? room.getJoinedMembers().find(m => m.userId !== client.getUserId()) : null
-            const name = isDm ? (other?.name || room.name) : room.name
-            const preview = getPreview(room)
-            return (
-              <ChatItem
-                key={room.roomId}
-                item={{
-                  id: room.roomId,
-                  name,
-                  avatar: isDm ? name.slice(0, 2).toUpperCase() : undefined,
-                  avatarMxcUrl: isDm ? other?.getMxcAvatarUrl() : room.getMxcAvatarUrl(),
-                  online: false,
-                  unread: room.getUnreadNotificationCount(),
-                  preview: preview.text,
-                  time: preview.time,
-                }}
-                type={isDm ? 'dm' : 'channel'}
-                isActive={activeRoom?.roomId === room.roomId}
-                onSelect={() => onRoomSelect(room)}
-              />
-            )
-          })}
-          {rooms.length === 0 && (
-            <div style={{ padding: '24px 14px', color: 'var(--text-muted)', fontSize: '12px', textAlign: 'center' }}>
-              Нет доступных комнат
-            </div>
-          )}
-        </div>
-      )}
+        {query.trim() ? (
+          <SearchResults client={client} query={query} onRoomSelect={handleSearchSelect} />
+        ) : (
+          <div style={{ flex: 1, minWidth: 0, minHeight: 0, overflowY: 'auto', padding: '8px 0' }}>
+            {rooms.map(({ room }) => {
+              const isDm = isDirectRoom(client, room.roomId)
+              const other = isDm ? room.getJoinedMembers().find(m => m.userId !== client.getUserId()) : null
+              const name = isDm ? (other?.name || room.name) : room.name
+              const preview = getPreview(room)
+              return (
+                <ChatItem
+                  key={room.roomId}
+                  item={{
+                    id: room.roomId,
+                    name,
+                    avatar: isDm ? name.slice(0, 2).toUpperCase() : undefined,
+                    avatarMxcUrl: isDm ? other?.getMxcAvatarUrl() : room.getMxcAvatarUrl(),
+                    online: false,
+                    unread: room.getUnreadNotificationCount(),
+                    preview: preview.text,
+                    time: preview.time,
+                  }}
+                  type={isDm ? 'dm' : 'channel'}
+                  isActive={activeRoom?.roomId === room.roomId}
+                  onSelect={() => onRoomSelect(room)}
+                />
+              )
+            })}
+            {rooms.length === 0 && (
+              <div style={{ padding: '24px 14px', color: 'var(--text-muted)', fontSize: '12px', textAlign: 'center' }}>
+                Нет доступных комнат
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       {showNewDm && (
         <NewDmModal onClose={() => setShowNewDm(false)} onCreated={handleCreated} />
