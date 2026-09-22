@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useRef, useEffect } from 'react'
 import { IconPinFilled } from '@tabler/icons-react'
 import { colorFor } from '../../lib/avatarColor'
 import Avatar from '../Avatar'
@@ -10,6 +10,14 @@ export default function ChatItem({ item, type, isActive, pinned, onSelect, onCon
   const avatarLabel = type === 'channel' ? `#${item.name.slice(0, 1).toUpperCase()}` : item.avatar
   const longPressTimer = useRef(null)
   const longPressFired = useRef(false)
+
+  // If the room list re-renders and this ChatItem unmounts while the user's
+  // finger is still down (e.g. a client sync event drops this room from the
+  // active folder mid-press), the pending setTimeout would otherwise still
+  // fire and call the stale onContextMenu closure after unmount.
+  useEffect(() => {
+    return () => clearTimeout(longPressTimer.current)
+  }, [])
 
   const handleTouchStart = (e) => {
     if (!onContextMenu) return
