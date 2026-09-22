@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { IconSearch, IconPlus, IconMenu2, IconMessageCircle, IconAddressBook, IconSettings } from '@tabler/icons-react'
 import { ClientEvent, RoomEvent } from 'matrix-js-sdk'
 import ChatItem from './ChatItem'
@@ -28,33 +28,26 @@ function getPreview(room) {
   return { text: '', time: '' }
 }
 
-function categorize(client, rooms) {
-  const channels = []
-  const dms = []
-  for (const room of rooms) {
-    // getRooms() includes rooms we've left (matrix-js-sdk keeps them
-    // around locally until forgotten) — left rooms aren't a chat anymore,
-    // just leftover history, so they don't belong in the room list.
-    if (room.getMyMembership() !== 'join') continue
-    if (isDirectRoom(client, room.roomId)) {
-      dms.push(room)
-    } else {
-      channels.push(room)
-    }
-  }
-  return { channels, dms }
+function sortedRooms(rooms) {
+  // getRooms() includes rooms we've left (matrix-js-sdk keeps them
+  // around locally until forgotten) — left rooms aren't a chat anymore,
+  // just leftover history, so they don't belong in the room list.
+  return rooms
+    .filter(room => room.getMyMembership() === 'join')
+    .sort((a, b) => b.getLastActiveTimestamp() - a.getLastActiveTimestamp())
 }
 
 export default function Sidebar({ client, activeRoom, onRoomSelect, onLogout, fullWidth }) {
-  const [rooms, setRooms] = useState(() => categorize(client, client.getRooms()))
+  const [rooms, setRooms] = useState(() => sortedRooms(client.getRooms()))
   const [query, setQuery] = useState('')
 
   const refresh = useCallback(() => {
-    setRooms(categorize(client, client.getRooms()))
+    setRooms(sortedRooms(client.getRooms()))
   }, [client])
 
   const [showNewDm, setShowNewDm] = useState(false)
   const [showNewChannel, setShowNewChannel] = useState(false)
+  const [showNewChatMenu, setShowNewChatMenu] = useState(false)
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   const [showContacts, setShowContacts] = useState(false)
@@ -120,6 +113,23 @@ export default function Sidebar({ client, activeRoom, onRoomSelect, onLogout, fu
             style={{ background: 'none', border: 'none', outline: 'none', color: 'var(--text-primary)', width: '100%', fontSize: '13px' }}
           />
         </div>
+        <div style={{ position: 'relative', flexShrink: 0 }}>
+          <button
+            onClick={() => setShowNewChatMenu(v => !v)}
+            style={{ width: '32px', height: '32px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)' }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-card)'; e.currentTarget.style.color = 'var(--text-primary)' }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = 'var(--text-secondary)' }}
+          >
+            <IconPlus size={17} strokeWidth={2} />
+          </button>
+          {showNewChatMenu && (
+            <NewChatMenu
+              onClose={() => setShowNewChatMenu(false)}
+              onNewDm={() => { setShowNewChatMenu(false); setShowNewDm(true) }}
+              onNewChannel={() => { setShowNewChatMenu(false); setShowNewChannel(true) }}
+            />
+          )}
+        </div>
       </div>
 
       {showUserMenu && (
@@ -136,46 +146,32 @@ export default function Sidebar({ client, activeRoom, onRoomSelect, onLogout, fu
       {query.trim() ? (
         <SearchResults client={client} query={query} onRoomSelect={handleSearchSelect} />
       ) : (
-        <div style={{ flex: 1, overflowY: 'auto', padding: '0 0 8px' }}>
-          <SectionHeader label="КАНАЛЫ" onClick={() => setShowNewChannel(true)} />
-          {rooms.channels.length > 0 && (
-            <>
-              {rooms.channels.map(room => {
-                const preview = getPreview(room)
-                return (
-                  <ChatItem
-                    key={room.roomId}
-                    item={{ id: room.roomId, name: room.name, avatarMxcUrl: room.getMxcAvatarUrl(), unread: room.getUnreadNotificationCount(), preview: preview.text, time: preview.time }}
-                    type="channel"
-                    isActive={activeRoom?.roomId === room.roomId}
-                    onSelect={() => onRoomSelect(room)}
-                  />
-                )
-              })}
-            </>
-          )}
-
-          <SectionHeader label="ЛИЧНЫЕ СООБЩЕНИЯ" style={{ marginTop: '8px' }} onClick={() => setShowNewDm(true)} />
-          {rooms.dms.length > 0 && (
-            <>
-              {rooms.dms.map(room => {
-                const other = room.getJoinedMembers().find(m => m.userId !== client.getUserId())
-                const name = other?.name || room.name
-                const preview = getPreview(room)
-                return (
-                  <ChatItem
-                    key={room.roomId}
-                    item={{ id: room.roomId, name, avatar: name.slice(0, 2).toUpperCase(), avatarMxcUrl: other?.getMxcAvatarUrl(), online: false, unread: room.getUnreadNotificationCount(), preview: preview.text, time: preview.time }}
-                    type="dm"
-                    isActive={activeRoom?.roomId === room.roomId}
-                    onSelect={() => onRoomSelect(room)}
-                  />
-                )
-              })}
-            </>
-          )}
-
-          {rooms.channels.length === 0 && rooms.dms.length === 0 && (
+        <div style={{ flex: 1, overflowY: 'auto', padding: '8px 0' }}>
+          {rooms.map(room => {
+            const isDm = isDirectRoom(client, room.roomId)
+            const other = isDm ? room.getJoinedMembers().find(m => m.userId !== client.getUserId()) : null
+            const name = isDm ? (other?.name || room.name) : room.name
+            const preview = getPreview(room)
+            return (
+              <ChatItem
+                key={room.roomId}
+                item={{
+                  id: room.roomId,
+                  name,
+                  avatar: isDm ? name.slice(0, 2).toUpperCase() : undefined,
+                  avatarMxcUrl: isDm ? other?.getMxcAvatarUrl() : room.getMxcAvatarUrl(),
+                  online: false,
+                  unread: room.getUnreadNotificationCount(),
+                  preview: preview.text,
+                  time: preview.time,
+                }}
+                type={isDm ? 'dm' : 'channel'}
+                isActive={activeRoom?.roomId === room.roomId}
+                onSelect={() => onRoomSelect(room)}
+              />
+            )
+          })}
+          {rooms.length === 0 && (
             <div style={{ padding: '24px 14px', color: 'var(--text-muted)', fontSize: '12px', textAlign: 'center' }}>
               Нет доступных комнат
             </div>
@@ -223,17 +219,44 @@ function TabButton({ icon: Icon, label, active, onClick }) {
   )
 }
 
-function SectionHeader({ label, style, onClick }) {
+function NewChatMenu({ onClose, onNewDm, onNewChannel }) {
+  const ref = useRef(null)
+
+  useEffect(() => {
+    const onClickOutside = (e) => { if (ref.current && !ref.current.contains(e.target)) onClose() }
+    const onKeyDown = (e) => { if (e.key === 'Escape') onClose() }
+    document.addEventListener('mousedown', onClickOutside)
+    window.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.removeEventListener('mousedown', onClickOutside)
+      window.removeEventListener('keydown', onKeyDown)
+    }
+  }, [onClose])
+
   return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 10px 4px', ...style }}>
-      <span style={{ fontSize: '10px', fontWeight: 600, letterSpacing: '0.07em', color: 'var(--text-muted)', textTransform: 'uppercase', userSelect: 'none' }}>{label}</span>
+    <div
+      ref={ref}
+      style={{
+        position: 'absolute', top: '38px', right: 0, width: '180px', zIndex: 200,
+        background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: '10px',
+        boxShadow: '0 8px 24px rgba(0,0,0,0.4)', overflow: 'hidden',
+      }}
+    >
       <button
-        onClick={onClick}
-        style={{ color: 'var(--text-muted)', display: 'flex', padding: '2px', borderRadius: '3px' }}
-        onMouseEnter={e => e.currentTarget.style.color = 'var(--text-secondary)'}
-        onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}
+        onClick={onNewDm}
+        style={{ width: '100%', textAlign: 'left', padding: '10px 12px', fontSize: '13px', color: 'var(--text-primary)' }}
+        onMouseEnter={e => e.currentTarget.style.background = 'var(--overlay-subtle)'}
+        onMouseLeave={e => e.currentTarget.style.background = 'none'}
       >
-        <IconPlus size={13} />
+        Новый чат
+      </button>
+      <button
+        onClick={onNewChannel}
+        style={{ width: '100%', textAlign: 'left', padding: '10px 12px', fontSize: '13px', color: 'var(--text-primary)' }}
+        onMouseEnter={e => e.currentTarget.style.background = 'var(--overlay-subtle)'}
+        onMouseLeave={e => e.currentTarget.style.background = 'none'}
+      >
+        Новый канал
       </button>
     </div>
   )
