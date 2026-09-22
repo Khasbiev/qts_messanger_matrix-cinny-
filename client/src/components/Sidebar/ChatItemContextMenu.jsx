@@ -35,9 +35,11 @@ export default function ChatItemContextMenu({ room, folders, pinnedInActive, pos
     const onKeyDown = (e) => { if (e.key === 'Escape') onClose() }
     document.addEventListener('mousedown', onClickOutside)
     window.addEventListener('keydown', onKeyDown)
+    document.addEventListener('scroll', onClose, true)
     return () => {
       document.removeEventListener('mousedown', onClickOutside)
       window.removeEventListener('keydown', onKeyDown)
+      document.removeEventListener('scroll', onClose, true)
     }
   }, [onClose])
 
@@ -47,6 +49,7 @@ export default function ChatItemContextMenu({ room, folders, pinnedInActive, pos
   return (
     <div
       ref={ref}
+      onContextMenu={e => e.preventDefault()}
       style={{
         position: 'fixed', zIndex: 200, ...style,
         background: 'var(--bg-surface)', border: '1px solid var(--border)',

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { IconTrash, IconChevronUp, IconChevronDown, IconCheck } from '@tabler/icons-react'
 import Modal from './Modal'
-import { createFolder, renameFolder, deleteFolder, reorderFolders, setRoomInFolder, isDirectRoom } from '../../lib/matrix'
+import { createFolder, renameFolder, deleteFolder, reorderFolders, isDirectRoom } from '../../lib/matrix'
 
 export default function FoldersModal({ client, folders, seedRoomId, onClose, onChanged }) {
   const [view, setView] = useState(seedRoomId ? 'create' : 'list')
@@ -97,8 +97,11 @@ function FolderListView({ realFolders, onClose, onChanged, onCreateClick }) {
 function FolderRow({ folder, canUp, canDown, onUp, onDown, onRename, onDelete }) {
   const [editing, setEditing] = useState(false)
   const [name, setName] = useState(folder.name)
+  const [confirmOpen, setConfirmOpen] = useState(false)
 
   const commit = () => { setEditing(false); onRename(name) }
+
+  const handleConfirmDelete = () => { setConfirmOpen(false); onDelete() }
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 4px' }}>
@@ -124,13 +127,27 @@ function FolderRow({ folder, canUp, canDown, onUp, onDown, onRename, onDelete })
         <IconChevronDown size={15} />
       </button>
       <button
-        onClick={onDelete}
+        onClick={() => setConfirmOpen(true)}
         style={{ color: 'var(--text-muted)', display: 'flex' }}
         onMouseEnter={e => { e.currentTarget.style.color = '#ff6b6b' }}
         onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-muted)' }}
       >
         <IconTrash size={15} />
       </button>
+      {confirmOpen && (
+        <Modal
+          title="Удалить папку?"
+          onClose={() => setConfirmOpen(false)}
+          footer={
+            <>
+              <button onClick={() => setConfirmOpen(false)} style={{ padding: '8px 14px', borderRadius: '7px', color: 'var(--text-secondary)', fontSize: '13px' }}>Отмена</button>
+              <button onClick={handleConfirmDelete} style={{ padding: '8px 14px', borderRadius: '7px', background: '#ff4d4d', color: '#fff', fontSize: '13px', fontWeight: 600, border: 'none' }}>Удалить</button>
+            </>
+          }
+        >
+          <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Папка «{folder.name}» будет удалена. Это действие нельзя отменить.</div>
+        </Modal>
+      )}
     </div>
   )
 }
@@ -152,8 +169,7 @@ function CreateFolderView({ client, seedRoomId, onBack, onClose, onCreated }) {
     setLoading(true)
     setError('')
     try {
-      const folderId = await createFolder(name.trim())
-      await Promise.all(selected.map(roomId => setRoomInFolder(folderId, roomId, true)))
+      await createFolder(name.trim(), selected)
       onCreated()
     } catch (err) {
       setError(err.message || 'Не удалось создать папку')

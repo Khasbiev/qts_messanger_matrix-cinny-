@@ -35,6 +35,10 @@ export async function login(username, password) {
     userId: resp.user_id,
     deviceId: resp.device_id,
   })
+  // Must be registered before any consumer's own AccountData refresh
+  // listener (e.g. Sidebar's) - EventEmitter dispatches listeners in
+  // registration order, and the folders cache has to be invalidated before
+  // a dependent read happens.
   _client.on(ClientEvent.AccountData, onFoldersAccountData)
 
   return _client
@@ -69,6 +73,8 @@ export async function restoreSession() {
   const { homeserver, accessToken, userId, deviceId } = JSON.parse(stored)
 
   _client = createClient({ baseUrl: homeserver, accessToken, userId, deviceId })
+  // Must be registered before any consumer's own AccountData refresh
+  // listener (e.g. Sidebar's) - see the matching comment in login().
   _client.on(ClientEvent.AccountData, onFoldersAccountData)
   return _client
 }
@@ -599,7 +605,8 @@ function onFoldersAccountData(event) {
 function getFoldersRaw() {
   if (!_client) throw new Error('Not connected')
   if (!_foldersCache) {
-    const stored = _client.getAccountData(FOLDERS_TYPE)?.getContent()?.folders || []
+    const raw = _client.getAccountData(FOLDERS_TYPE)?.getContent()?.folders
+    const stored = Array.isArray(raw) ? raw : []
     const all = stored.find(f => f.id === 'all') || defaultAllFolder()
     const folders = stored.filter(f => f.id !== 'all').sort((a, b) => a.order - b.order)
     _foldersCache = { all, folders }
@@ -613,15 +620,24 @@ export function getFolders() {
 }
 
 async function saveFolders(all, folders) {
+  const prev = _foldersCache
   _foldersCache = { all, folders }
-  await _client.setAccountData(FOLDERS_TYPE, { version: 1, folders: [all, ...folders] })
+  try {
+    await _client.setAccountData(FOLDERS_TYPE, { version: 1, folders: [all, ...folders] })
+  } catch (err) {
+    // Server rejected the write - roll back the optimistic cache instead of
+    // leaving it lying about what's actually persisted (no sync event will
+    // ever arrive to invalidate it, since the server never accepted this).
+    _foldersCache = prev
+    throw err
+  }
 }
 
-export async function createFolder(name) {
+export async function createFolder(name, roomIds = []) {
   const { all, folders } = getFoldersRaw()
   const id = `folder_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
   const order = folders.length ? Math.max(...folders.map(f => f.order)) + 1 : 0
-  await saveFolders(all, [...folders, { id, name, order, roomIds: [], pinnedRoomIds: [] }])
+  await saveFolders(all, [...folders, { id, name, order, roomIds: [...new Set(roomIds)], pinnedRoomIds: [] }])
   return id
 }
 

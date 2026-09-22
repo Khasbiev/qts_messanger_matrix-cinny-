@@ -48,6 +48,14 @@ export default function Sidebar({ client, activeRoom, onRoomSelect, onLogout, fu
   const activeFolder = folders.find(f => f.id === activeFolderId) || folders[0]
   const rooms = roomsForFolder(client, activeFolder)
 
+  // Keeps activeFolderId itself from drifting indefinitely once its folder
+  // is gone (e.g. deleted via FoldersModal while active) - without this,
+  // every direct use of the raw id (not just the activeFolder fallback
+  // above) keeps pointing at a folder that no longer exists.
+  useEffect(() => {
+    if (!folders.some(f => f.id === activeFolderId)) setActiveFolderId('all')
+  }, [folders, activeFolderId])
+
   const [showNewDm, setShowNewDm] = useState(false)
   const [showNewChannel, setShowNewChannel] = useState(false)
   const [showNewChatMenu, setShowNewChatMenu] = useState(false)
@@ -61,7 +69,7 @@ export default function Sidebar({ client, activeRoom, onRoomSelect, onLogout, fu
     if (!contextMenu) return
     const { room } = contextMenu
     const alreadyPinned = activeFolder.pinnedRoomIds?.includes(room.roomId)
-    setRoomPinned(activeFolderId, room.roomId, !alreadyPinned).then(refresh).catch(err => console.error('Pin toggle failed:', err))
+    setRoomPinned(activeFolder.id, room.roomId, !alreadyPinned).then(refresh).catch(err => console.error('Pin toggle failed:', err))
   }
 
   const handleToggleFolder = (folderId, inFolder) => {
@@ -164,7 +172,7 @@ export default function Sidebar({ client, activeRoom, onRoomSelect, onLogout, fu
         {!query.trim() && (
           <FolderTabs
             folders={folders}
-            activeFolderId={activeFolderId}
+            activeFolderId={activeFolder.id}
             onSelect={setActiveFolderId}
             onCreateClick={() => setFoldersModal({})}
           />
