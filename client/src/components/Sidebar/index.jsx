@@ -8,8 +8,10 @@ import NewDmModal from '../Modals/NewDmModal'
 import NewChannelModal from '../Modals/NewChannelModal'
 import SettingsModal from '../Modals/SettingsModal'
 import ContactsModal from '../Modals/ContactsModal'
-import { waitForRoom, isDirectRoom } from '../../lib/matrix'
+import { waitForRoom, isDirectRoom, getFolders, roomsForFolder } from '../../lib/matrix'
 import { formatChatTime } from '../../lib/formatTime'
+import FolderTabs from './FolderTabs'
+import FoldersModal from '../Modals/FoldersModal'
 
 function getPreview(room) {
   const events = room.getLiveTimeline().getEvents()
@@ -38,12 +40,21 @@ function sortedRooms(rooms) {
 }
 
 export default function Sidebar({ client, activeRoom, onRoomSelect, onLogout, fullWidth }) {
-  const [rooms, setRooms] = useState(() => sortedRooms(client.getRooms()))
+  const [folders, setFolders] = useState(() => getFolders())
+  const [activeFolderId, setActiveFolderId] = useState('all')
   const [query, setQuery] = useState('')
 
+  // getFolders() always returns fresh array/object references, so storing
+  // its result is enough to force a re-render on every relevant client
+  // event below - no separate "tick" state needed.
   const refresh = useCallback(() => {
-    setRooms(sortedRooms(client.getRooms()))
-  }, [client])
+    setFolders(getFolders())
+  }, [])
+
+  // Falls back to folders[0] (always "all") if the active folder was just
+  // deleted elsewhere (e.g. via FoldersModal) - see FoldersModal Step 1.
+  const activeFolder = folders.find(f => f.id === activeFolderId) || folders[0]
+  const rooms = roomsForFolder(client, activeFolder)
 
   const [showNewDm, setShowNewDm] = useState(false)
   const [showNewChannel, setShowNewChannel] = useState(false)
@@ -51,6 +62,7 @@ export default function Sidebar({ client, activeRoom, onRoomSelect, onLogout, fu
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   const [showContacts, setShowContacts] = useState(false)
+  const [foldersModal, setFoldersModal] = useState(null) // null | { seedRoomId?: string }
 
   const handleSearchSelect = (room, opts) => {
     onRoomSelect(room, opts)
@@ -143,11 +155,20 @@ export default function Sidebar({ client, activeRoom, onRoomSelect, onLogout, fu
       )}
 
       {/* Room list / search results */}
+      {!query.trim() && (
+        <FolderTabs
+          folders={folders}
+          activeFolderId={activeFolderId}
+          onSelect={setActiveFolderId}
+          onCreateClick={() => setFoldersModal({})}
+        />
+      )}
+
       {query.trim() ? (
         <SearchResults client={client} query={query} onRoomSelect={handleSearchSelect} />
       ) : (
         <div style={{ flex: 1, overflowY: 'auto', padding: '8px 0' }}>
-          {rooms.map(room => {
+          {rooms.map(({ room }) => {
             const isDm = isDirectRoom(client, room.roomId)
             const other = isDm ? room.getJoinedMembers().find(m => m.userId !== client.getUserId()) : null
             const name = isDm ? (other?.name || room.name) : room.name
@@ -190,6 +211,15 @@ export default function Sidebar({ client, activeRoom, onRoomSelect, onLogout, fu
       )}
       {showContacts && (
         <ContactsModal onClose={() => setShowContacts(false)} onOpenChat={handleCreated} />
+      )}
+      {foldersModal && (
+        <FoldersModal
+          client={client}
+          folders={folders}
+          seedRoomId={foldersModal.seedRoomId}
+          onClose={() => setFoldersModal(null)}
+          onChanged={refresh}
+        />
       )}
 
       {/* Mobile-only bottom nav — on desktop these live in the hamburger menu */}

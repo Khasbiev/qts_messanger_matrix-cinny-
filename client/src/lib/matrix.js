@@ -35,6 +35,7 @@ export async function login(username, password) {
     userId: resp.user_id,
     deviceId: resp.device_id,
   })
+  _client.on(ClientEvent.AccountData, onFoldersAccountData)
 
   return _client
 }
@@ -68,6 +69,7 @@ export async function restoreSession() {
   const { homeserver, accessToken, userId, deviceId } = JSON.parse(stored)
 
   _client = createClient({ baseUrl: homeserver, accessToken, userId, deviceId })
+  _client.on(ClientEvent.AccountData, onFoldersAccountData)
   return _client
 }
 
@@ -152,6 +154,7 @@ export async function logout() {
     _client.stopClient()
     _client = null
   }
+  _foldersCache = null
   localStorage.removeItem(STORAGE_KEY)
 }
 
@@ -569,4 +572,118 @@ export async function searchMessages(term) {
       ts: event.getTs(),
     }
   })
+}
+
+const FOLDERS_TYPE = 'dev.qts.chatFolders'
+
+function defaultAllFolder() {
+  return { id: 'all', name: 'Все чаты', order: -1, pinnedRoomIds: [] }
+}
+
+// client.setAccountData() only PUTs to the server - matrix-js-sdk's local
+// store (what client.getAccountData() reads) isn't updated until the PUT's
+// result comes back through a later /sync response. Without this cache,
+// two folder writes issued back-to-back (e.g. createFolder() immediately
+// followed by setRoomInFolder() calls for the initial checklist selection)
+// would both read the same stale pre-write snapshot and the second write
+// would clobber the first. _foldersCache is the optimistic source of truth
+// for our own writes; it's invalidated (not written) on every incoming
+// AccountData event for this type so changes from another tab/device still
+// get picked up on the next read.
+let _foldersCache = null
+
+function onFoldersAccountData(event) {
+  if (event.getType() === FOLDERS_TYPE) _foldersCache = null
+}
+
+function getFoldersRaw() {
+  if (!_client) throw new Error('Not connected')
+  if (!_foldersCache) {
+    const stored = _client.getAccountData(FOLDERS_TYPE)?.getContent()?.folders || []
+    const all = stored.find(f => f.id === 'all') || defaultAllFolder()
+    const folders = stored.filter(f => f.id !== 'all').sort((a, b) => a.order - b.order)
+    _foldersCache = { all, folders }
+  }
+  return _foldersCache
+}
+
+export function getFolders() {
+  const { all, folders } = getFoldersRaw()
+  return [all, ...folders]
+}
+
+async function saveFolders(all, folders) {
+  _foldersCache = { all, folders }
+  await _client.setAccountData(FOLDERS_TYPE, { version: 1, folders: [all, ...folders] })
+}
+
+export async function createFolder(name) {
+  const { all, folders } = getFoldersRaw()
+  const id = `folder_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+  const order = folders.length ? Math.max(...folders.map(f => f.order)) + 1 : 0
+  await saveFolders(all, [...folders, { id, name, order, roomIds: [], pinnedRoomIds: [] }])
+  return id
+}
+
+export async function renameFolder(folderId, name) {
+  const { all, folders } = getFoldersRaw()
+  await saveFolders(all, folders.map(f => (f.id === folderId ? { ...f, name } : f)))
+}
+
+export async function deleteFolder(folderId) {
+  const { all, folders } = getFoldersRaw()
+  await saveFolders(all, folders.filter(f => f.id !== folderId))
+}
+
+export async function reorderFolders(orderedIds) {
+  const { all, folders } = getFoldersRaw()
+  const byId = new Map(folders.map(f => [f.id, f]))
+  const reordered = orderedIds
+    .filter(id => byId.has(id))
+    .map((id, i) => ({ ...byId.get(id), order: i }))
+  await saveFolders(all, reordered)
+}
+
+// folderId === 'all' is a no-op: membership in "Все чаты" is implicit
+// (every joined room), not user-editable.
+export async function setRoomInFolder(folderId, roomId, inFolder) {
+  if (folderId === 'all') return
+  const { all, folders } = getFoldersRaw()
+  await saveFolders(all, folders.map(f => {
+    if (f.id !== folderId) return f
+    const roomIds = inFolder ? [...new Set([...f.roomIds, roomId])] : f.roomIds.filter(id => id !== roomId)
+    const pinnedRoomIds = inFolder ? f.pinnedRoomIds : f.pinnedRoomIds.filter(id => id !== roomId)
+    return { ...f, roomIds, pinnedRoomIds }
+  }))
+}
+
+export async function setRoomPinned(folderId, roomId, pinned) {
+  const { all, folders } = getFoldersRaw()
+  const applyPin = (f) => ({
+    ...f,
+    pinnedRoomIds: pinned
+      ? [roomId, ...f.pinnedRoomIds.filter(id => id !== roomId)]
+      : f.pinnedRoomIds.filter(id => id !== roomId),
+  })
+  if (folderId === 'all') {
+    await saveFolders(applyPin(all), folders)
+  } else {
+    await saveFolders(all, folders.map(f => (f.id === folderId ? applyPin(f) : f)))
+  }
+}
+
+// A left/forgotten room is not proactively pruned from roomIds/pinnedRoomIds
+// - it's simply filtered out here against the current joined set. Avoids an
+// extra account-data write on every leave.
+export function roomsForFolder(client, folder) {
+  const joined = client.getRooms().filter(r => r.getMyMembership() === 'join')
+  const members = folder.id === 'all' ? joined : joined.filter(r => folder.roomIds?.includes(r.roomId))
+  const pinnedSet = new Set(folder.pinnedRoomIds || [])
+  const pinned = (folder.pinnedRoomIds || [])
+    .map(id => members.find(r => r.roomId === id))
+    .filter(Boolean)
+  const rest = members
+    .filter(r => !pinnedSet.has(r.roomId))
+    .sort((a, b) => b.getLastActiveTimestamp() - a.getLastActiveTimestamp())
+  return [...pinned, ...rest].map(room => ({ room, pinned: pinnedSet.has(room.roomId) }))
 }
