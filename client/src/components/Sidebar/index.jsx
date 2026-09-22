@@ -167,14 +167,15 @@ export default function Sidebar({ client, activeRoom, onRoomSelect, onLogout, fu
         />
       )}
 
-      {/* Folder rail (left, vertical) + room list / search results */}
-      <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
+      {/* Folder rail (vertical, desktop) / folder strip (horizontal, mobile) + room list / search results */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: fullWidth ? 'column' : 'row', minHeight: 0 }}>
         {!query.trim() && (
           <FolderTabs
             folders={folders}
             activeFolderId={activeFolder.id}
             onSelect={setActiveFolderId}
             onCreateClick={() => setFoldersModal({})}
+            fullWidth={fullWidth}
           />
         )}
 
