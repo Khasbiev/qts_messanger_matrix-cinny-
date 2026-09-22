@@ -245,3 +245,33 @@ via two accounts on `scripts/dev/local-test-synapse.sh`:
 - Reload the page after all the above, confirm folders/membership/pins
   all survive (account data persisted correctly).
 - Confirm no console errors throughout.
+
+## Correction (2026-09-22)
+
+Three details shipped differently than described above, all decided
+during implementation (the first at the user's explicit request, the
+other two are small write-ups catching up to what the code already does
+correctly):
+
+- **Folder tab layout is responsive, not a fixed horizontal strip.** On
+  desktop/wide screens the folder selector renders as a narrow (56px)
+  vertical icon rail on the left edge of the sidebar (matching Telegram
+  Desktop's "compact folders" mode — each folder shown as a rounded-square
+  badge with a 2-letter abbreviation of its name, "Вс" for "Все чаты").
+  On mobile (the app's existing `fullWidth` layout mode, viewport <780px)
+  it's the horizontal pill-strip described above, sitting above the chat
+  list. `FolderTabs.jsx` branches on a `fullWidth` prop threaded from
+  `Sidebar`.
+- **Recency sort uses `room.getLastActiveTimestamp()`**, not a re-scan of
+  `getPreview()`'s "last real message" logic as originally sketched.
+  `getLastActiveTimestamp()` is matrix-js-sdk's own last-live-timeline-
+  event timestamp (any event type, not just `m.room.message`) — cheaper,
+  and doesn't depend on which events happen to be loaded locally. Kept
+  deliberately: a join/leave bumping a quiet room to the top of the list
+  (while its preview text stays old) is an accepted, minor tradeoff for
+  this.
+- **The create-folder chat checklist is not search-filterable** — it's
+  the plain list of joined rooms, unsorted-by-recency, in a scrollable
+  box. Fine at small scale; worth a follow-up (sort by
+  `getLastActiveTimestamp()` at minimum, a search box if folder counts
+  grow) if it becomes annoying in practice.
